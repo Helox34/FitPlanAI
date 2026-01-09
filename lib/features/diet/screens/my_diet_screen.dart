@@ -5,7 +5,9 @@ import '../../../core/models/models.dart';
 import '../../../core/widgets/empty_plan_widget.dart';
 import '../../../providers/plan_provider.dart';
 import '../../onboarding/screens/plan_type_selection_screen.dart';
+import '../../onboarding/screens/plan_type_selection_screen.dart';
 import '../../home/screens/main_shell.dart';
+import '../../workout/widgets/day_selector.dart';
 
 /// Screen displaying the user's diet plan (analogous to MyPlanScreen)
 class MyDietScreen extends StatefulWidget {
@@ -97,44 +99,33 @@ class _MyDietScreenState extends State<MyDietScreen> {
               ),
               
               // Day selector
-              Container(
-                height: 60,
-                color: AppColors.surface,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  itemCount: 7,
-                  itemBuilder: (context, index) {
-                    final days = ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Nie'];
-                    final isSelected = index == _selectedDayIndex;
-                    
-                    return GestureDetector(
-                      onTap: () {
+              Builder(
+                builder: (context) {
+                  // Determine days based on plan length
+                  final dayCount = plan.schedule.length;
+                  final List<String> days;
+                  
+                  if (dayCount == 7) {
+                    days = const ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Nie'];
+                  } else {
+                    // Show exact number of days available
+                    days = List.generate(dayCount, (i) => 'Dzień ${i + 1}');
+                  }
+                  
+                  return Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    color: AppColors.surface,
+                    child: DaySelector(
+                      selectedDayIndex: _selectedDayIndex,
+                      onDaySelected: (index) {
                         setState(() {
                           _selectedDayIndex = index;
                         });
                       },
-                      child: Container(
-                        width: 50,
-                        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: isSelected ? const Color(0xFF10B981) : Colors.transparent,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Center(
-                          child: Text(
-                            days[index],
-                            style: TextStyle(
-                              color: isSelected ? Colors.white : AppColors.textSecondary,
-                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                      customDays: days,
+                    ),
+                  );
+                }
               ),
               
               const Divider(height: 1, color: AppColors.border),
@@ -151,7 +142,13 @@ class _MyDietScreenState extends State<MyDietScreen> {
   }
   
   Widget _buildDayContent(GeneratedPlan plan, int dayIndex) {
-    final dayNames = ['Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota', 'Niedziela'];
+    // Generate day names dynamically if more than 7
+    final List<String> dayNames;
+    if (plan.schedule.length <= 7) {
+      dayNames = ['Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota', 'Niedziela'];
+    } else {
+      dayNames = List.generate(plan.schedule.length, (i) => 'Dzień ${i + 1}');
+    }
     
     // Find the day in the schedule
     PlanDay? planDay;

@@ -172,9 +172,9 @@ Zwróć JSON w formacie:
         },
         body: jsonEncode(body),
       ).timeout(
-        const Duration(seconds: 60),
+        const Duration(seconds: 180), // Increased to 3 minutes for 14-day plans
         onTimeout: () {
-          print('⏰ Request timed out after 60 seconds');
+          print('⏰ Request timed out after 180 seconds');
           throw Exception('Request timed out');
         },
       );
@@ -383,7 +383,7 @@ ${jsonEncode(structuredData)}
 
 Wytyczne:
 1. Plan musi ściśle uwzględniać odpowiedzi (np. unikać alergenów z q18, uwzględniać kontuzje z q14).
-2. Wygeneruj plan na cały tydzień (7 dni).
+2. Wygeneruj plan na ${mode == CreatorMode.DIET ? '14 DNI (To krytyczne: tablica schedule MUSI mieć 14 elementów)' : 'cały tydzień (7 dni)'}.
 3. W polu 'progress' wygeneruj logiczną prognozę na 4 tygodnie.
 4. W polu 'tips' dla każdego ćwiczenia dodaj bardzo zwięzłą poradę techniczną (np. "Trzymaj proste plecy", "Nie blokuj łokci").
 5. WAŻNE: W planach treningowych (WORKOUT) uwzględnij długie przerwy między seriami wynoszące 3-5 minut (zapisz to w polu 'note' np. "Przerwa 3-5 min").

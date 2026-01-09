@@ -170,34 +170,41 @@ class _AIChatScreenState extends State<AIChatScreen> {
         ),
         actions: [
           Consumer<ChatProvider>(
-            builder: (context, chatProvider, _) {
-              // Calculate minimum messages needed:
-              // 1 greeting + (27 or 30 questions * 2 messages each) = 55 for workout, 61 for diet
-              final minMessages = widget.mode == CreatorMode.WORKOUT ? 55 : 61;
+            builder: (context, chatProvider, child) {
+              // Show button if interview is complete OR if we have enough messages OR if last message says "generate"
+              final minMessages = widget.mode == CreatorMode.WORKOUT ? 45 : 49;
               
-              if (chatProvider.messages.length >= minMessages) {
-                return ElevatedButton.icon(
-                  onPressed: _finishInterview,
-                  icon: const Icon(Icons.auto_awesome, size: 18),
-                  label: Text(
-                    widget.mode == CreatorMode.WORKOUT 
-                        ? 'Generuj plan' 
-                        : 'Generuj dietę',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
+              bool showButton = chatProvider.isInterviewComplete || chatProvider.messages.length >= minMessages;
+              
+              // Fallback check for current session
+              if (!showButton && chatProvider.messages.isNotEmpty) {
+                final lastMsg = chatProvider.messages.last;
+                if (lastMsg.role == 'model') {
+                  final text = lastMsg.text.toLowerCase();
+                  if (text.contains('generuj plan') || text.contains('generuj dietę')) {
+                    showButton = true;
+                  }
+                }
+              }
+              
+              if (showButton) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 16.0),
+                  child: ElevatedButton.icon(
+                    onPressed: _finishInterview,
+                    icon: const Icon(Icons.auto_awesome, size: 18),
+                    label: Text(widget.mode == CreatorMode.WORKOUT ? 'Generuj plan' : 'Generuj dietę'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   ),
                 );
               }
               return const SizedBox();
             },
           ),
-          const SizedBox(width: 8),
         ],
       ),
       body: Stack(

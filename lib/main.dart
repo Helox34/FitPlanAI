@@ -11,6 +11,8 @@ import 'providers/chat_provider.dart';
 import 'providers/plan_provider.dart';
 import 'providers/user_provider.dart';
 
+import 'providers/live_workout_provider.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -35,6 +37,11 @@ class FitPlanAIApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(create: (_) => PlanProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProxyProvider<PlanProvider, LiveWorkoutProvider>(
+          create: (context) => LiveWorkoutProvider(context.read<PlanProvider>()),
+          update: (context, planProvider, previous) => 
+               previous ?? LiveWorkoutProvider(planProvider),
+        ),
       ],
       child: MaterialApp(
         title: 'FitPlan AI',

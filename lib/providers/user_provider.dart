@@ -21,6 +21,13 @@ class UserProvider with ChangeNotifier {
   String? get nickname => _nickname;
   String? get avatarUrl => _avatarUrl;
   
+  // Stretch fields (loaded directly from prefs)
+  int _streakCurrent = 0;
+  int _streakBest = 0;
+  
+  int get streakCurrent => _streakCurrent;
+  int get streakBest => _streakBest;
+  
   bool get hasCompletedInitialSurvey => _surveyCompleted;
   
   /// Load user data from storage
@@ -35,6 +42,9 @@ class UserProvider with ChangeNotifier {
       _avatarUrl = prefs.getString('user_avatar_url');
       _currentLanguage = prefs.getString('user_language') ?? 'pl';
       _surveyCompleted = prefs.getBool('survey_completed') ?? false;
+      
+      _streakCurrent = prefs.getInt('streak_current') ?? 0;
+      _streakBest = prefs.getInt('streak_best') ?? 0;
       
       notifyListeners();
     } catch (e) {
@@ -138,6 +148,48 @@ class UserProvider with ChangeNotifier {
     
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
+    
+    notifyListeners();
+  }
+  
+  /// Increment streak
+  Future<void> incrementStreak() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastDateStr = prefs.getString('last_workout_date');
+    final now = DateTime.now();
+    
+    // Check if already incremented today
+    if (lastDateStr != null) {
+      final lastDate = DateTime.parse(lastDateStr);
+      if (lastDate.year == now.year && 
+          lastDate.month == now.month && 
+          lastDate.day == now.day) {
+        // Already done today, do not increment streak
+        // We can still update the timestamp if we want to track exact last time
+        // but for streak protection, we just return.
+        return;
+      }
+    }
+    
+    // Simple logic: just increment current streak
+    // In a real app, check dates (1 day diff)
+    int current = prefs.getInt('streak_current') ?? 0;
+    int best = prefs.getInt('streak_best') ?? 0;
+    
+    current++;
+    if (current > best) {
+      best = current;
+    }
+    
+    await prefs.setInt('streak_current', current);
+    await prefs.setInt('streak_best', best);
+    
+    // Also save last workout date
+    await prefs.setString('last_workout_date', now.toIso8601String());
+    
+    // Update local state
+    _streakCurrent = current;
+    _streakBest = best;
     
     notifyListeners();
   }
