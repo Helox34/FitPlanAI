@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/data/mock_data.dart';
+import '../../../core/models/models.dart';
 import '../../../core/widgets/achievement_badge.dart';
 import '../../../core/widgets/workout_card.dart';
 import '../../../core/widgets/custom_button.dart';
+import '../../../services/plan_service.dart';
 
 class MyPlanScreen extends StatefulWidget {
   const MyPlanScreen({super.key});
@@ -17,11 +19,22 @@ class _MyPlanScreenState extends State<MyPlanScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _selectedDayIndex = 0;
+  GeneratedPlan? _workoutPlan;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _loadPlan();
+  }
+
+  Future<void> _loadPlan() async {
+    final plan = await PlanService.getCurrentPlan();
+    setState(() {
+      _workoutPlan = plan ?? MockData.sampleFBWPlan; // Fallback to mock if no plan
+      _isLoading = false;
+    });
   }
 
   @override
@@ -32,8 +45,19 @@ class _MyPlanScreenState extends State<MyPlanScreen>
 
   @override
   Widget build(BuildContext context) {
-    final workoutPlan = MockData.sampleFBWPlan;
     final progress = MockData.sampleProgress;
+
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          title: const Text('Mój Plan'),
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -85,7 +109,7 @@ class _MyPlanScreenState extends State<MyPlanScreen>
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildScheduleTab(workoutPlan),
+                _buildScheduleTab(_workoutPlan!),
                 _buildProgressTab(),
               ],
             ),

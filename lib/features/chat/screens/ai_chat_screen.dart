@@ -3,6 +3,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/models/models.dart';
 import '../../../core/data/mock_data.dart';
 import '../../../services/openrouter_service.dart';
+import '../../../services/plan_service.dart';
 
 class AIChatScreen extends StatefulWidget {
   const AIChatScreen({super.key});
@@ -17,7 +18,9 @@ class _AIChatScreenState extends State<AIChatScreen> {
   final List<ChatMessage> _messages = List.from(MockData.sampleChatMessages);
   final OpenRouterService _aiService = OpenRouterService();
   bool _isTyping = false;
+  bool _isGeneratingPlan = false;
   String? _errorMessage;
+  GeneratedPlan? _generatedPlan;
 
   @override
   void dispose() {
@@ -102,6 +105,57 @@ class _AIChatScreenState extends State<AIChatScreen> {
     }
   }
 
+  Future<void> _finishInterviewAndGeneratePlan() async {
+    setState(() {
+      _isGeneratingPlan = true;
+    });
+
+    try {
+      // Generate plan from interview history
+      final plan = await _aiService.generatePlan(
+        _messages,
+        CreatorMode.WORKOUT, // Default to workout mode
+      );
+
+      setState(() {
+        _generatedPlan = plan;
+        _isGeneratingPlan = false;
+      });
+
+      // Save plan to persistent storage
+      try {
+        await PlanService.savePlan(plan);
+      } catch (e) {
+        print('Error saving plan: $e');
+      }
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Plan zapisany! Tytuł: ${plan.title}'),
+            backgroundColor: AppColors.success,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isGeneratingPlan = false;
+        _errorMessage = 'Błąd generowania planu: ${e.toString()}';
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Błąd: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -170,6 +224,102 @@ class _AIChatScreenState extends State<AIChatScreen> {
             ),
           ),
 
+          // Finish Interview Button (shows after 3+ user messages)
+          if (_messages.where((m) => m.role == 'user').length >= 3 && _generatedPlan == null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceVariant,
+                border: Border(
+                  top: BorderSide(color: AppColors.border, width: 1),
+                ),
+              ),
+              child: SafeArea(
+                top: false,
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _isGeneratingPlan ? null : _finishInterviewAndGeneratePlan,
+                    icon: _isGeneratingPlan
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.textOnPrimary,
+                            ),
+                          )
+                        : const Icon(Icons.check_circle, size: 20),
+                    label: Text(
+                      _isGeneratingPlan
+                          ? 'Generowanie...'
+                          : 'Wygeneruj plan',
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.success,
+                      foregroundColor: AppColors.textOnPrimary,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+          // Show generated plan summary
+          if (_generatedPlan != null)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.success.withOpacity(0.1),
+                border: Border(
+                  top: BorderSide(color: AppColors.success, width: 2),
+                ),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.check_circle, color: AppColors.success),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Plan wygenerowany!',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: AppColors.success,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _generatedPlan!.title,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _generatedPlan!.description,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Dni: ${_generatedPlan!.schedule.length}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
           // Input Area
           Container(
             padding: const EdgeInsets.all(16),
@@ -202,7 +352,8 @@ class _AIChatScreenState extends State<AIChatScreen> {
                           vertical: 12,
                         ),
                       ),
-                      maxLines: null,
+                      minLines: 1,
+                      maxLines: 5,
                       textCapitalization: TextCapitalization.sentences,
                       onSubmitted: (_) => _sendMessage(),
                     ),

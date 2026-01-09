@@ -8,7 +8,7 @@ class OpenRouterService {
   
   // Models (similar to Gemini in React app)
   static const String chatModel = 'anthropic/claude-3-haiku';  // Fast for chat
-  static const String reasoningModel = 'anthropic/claude-3-sonnet';  // Accurate for plans
+  static const String reasoningModel = 'anthropic/claude-3.5-sonnet';  // Accurate for plans
   
   final String apiKey;
   

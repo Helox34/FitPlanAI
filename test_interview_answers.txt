@@ -1,0 +1,77 @@
+PRZYKŁADOWE ODPOWIEDZI DO TESTOWANIA AI CHAT
+==============================================
+
+Skopiuj i wklej te odpowiedzi do AI Chat, aby szybko przetestować system wywiadu.
+
+---
+
+1. Choroby przewlekłe: Tak. Zdiagnozowane: Cukrzyca, Tarczyca Hashimoto, Jaskra.
+
+2. Historia medyczna/urazy: Przebyta operacja zaćmy.
+
+3. Problemy trawienne/metaboliczne: Nie stwierdzono (brak IBS, SIBO, refluksu).
+
+4. Wywiad rodzinny: Tak, w rodzinie występują choroby cywilizacyjne.
+
+5. Farmakoterapia: Insulina Fiasp (pompa insulinowa 24h). Euthyrox 100 mg.
+
+6. Suplementacja: Stosowana profilaktycznie: Witamina C-1000. Witamina D3 (dawka: 300 µg).
+
+7. Używki: Nie spożywam (brak alkoholu, kofeiny i innych używek).
+
+8. Cel główny: Schudnąć z brzucha (redukcja tkanki tłuszczowej trzewnej).
+
+9. Cel drugorzędny: Zwiększenie siły.
+
+10. Miernik sukcesu: Lepsze samopoczucie.
+
+11. Aktualna aktywność: Średnio 4800 kroków dziennie. Brak innych treningów w tym momencie.
+
+12. Preferencje ruchowe: Nielubiane: Pływanie, bieganie.
+
+13. Historia sportowa: Tak – Zumba oraz Karate (przez okres 2–3 lat).
+
+14. Ograniczenia ruchowe: Brak dolegliwości bólowych.
+
+15. Typowe żywienie: 3 posiłki dziennie: 08:00 Śniadanie: Kanapka z wędliną i pomidor. 13:00 Obiad: Schabowy z ziemniakami i surówką. 18:00 Kolacja: Kanapki z jajkiem na miękko.
+
+16. Nawyki żywieniowe (podjadanie): Nie pomijam posiłków. Podjadam/piję tylko glukozę w sytuacjach hipoglikemii (spadek cukru), aby wyrównać poziom do normy.
+
+17. Jedzenie przetworzone/na mieście: Bardzo rzadko (raz na pół roku).
+
+18. Wykluczenia w diecie: Seler, pietruszka (korzeń), biała cebula.
+
+19. Historia diet: Brak (nie stosowano wcześniej konkretnych diet typu keto/wege).
+
+20. Preferencje smakowe: Brak szczegółowych wymagań ("wszystko jem").
+
+21. Tryb życia i pracy: Praca ze średnią ilością ruchu. Poziom stresu w pracy: średni.
+
+22. Zasoby czasowe: Trening: 3 razy w tygodniu. Gotowanie: Posiłki mają być dobre i szybkie.
+
+23. Regeneracja (sen): 8–9 godzin na dobę. Jakość dobra, łatwe zasypianie, brak wybudzeń.
+
+24. Stres i radzenie sobie: Poziom stresu: średni. Metody radzenia sobie: oddychanie i medytacja.
+
+25. Energia w ciągu dnia: Występują spadki energii po posiłkach (senność poposiłkowa).
+
+26. Doświadczenie ze specjalistami: Brak (pierwsza współpraca z trenerem/dietetykiem).
+
+27. Inne uwagi: Brak.
+
+---
+
+SKRÓCONE WERSJE (do szybszego testowania):
+==========================================
+
+Wersja 1 (3 wiadomości - minimum do pokazania przycisku):
+1. Cukrzyca, Hashimoto, Jaskra. Insulina, Euthyrox.
+2. Cel: schudnąć z brzucha, zwiększyć siłę. 4800 kroków/dzień.
+3. 3 posiłki dziennie, brak diet wcześniej. Trening 3x tydzień.
+
+Wersja 2 (5 wiadomości - pełniejszy test):
+1. Cukrzyca, Hashimoto, Jaskra. Insulina Fiasp, Euthyrox 100mg.
+2. Cel główny: redukcja brzucha. Cel drugorzędny: siła.
+3. Aktywność: 4800 kroków. Historia: Zumba, Karate 2-3 lata.
+4. Żywienie: 3 posiłki (kanapki, schabowy, jajka). Wykluczenia: seler, pietruszka, biała cebula.
+5. Trening 3x tydzień. Sen 8-9h. Stres średni, medytacja.
