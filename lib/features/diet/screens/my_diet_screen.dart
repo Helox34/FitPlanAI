@@ -7,15 +7,15 @@ import '../../../providers/plan_provider.dart';
 import '../../onboarding/screens/plan_type_selection_screen.dart';
 import '../../home/screens/main_shell.dart';
 
-/// Screen displaying the user's workout plan
-class MyPlanScreen extends StatefulWidget {
-  const MyPlanScreen({super.key});
+/// Screen displaying the user's diet plan (analogous to MyPlanScreen)
+class MyDietScreen extends StatefulWidget {
+  const MyDietScreen({super.key});
 
   @override
-  State<MyPlanScreen> createState() => _MyPlanScreenState();
+  State<MyDietScreen> createState() => _MyDietScreenState();
 }
 
-class _MyPlanScreenState extends State<MyPlanScreen> {
+class _MyDietScreenState extends State<MyDietScreen> {
   int _selectedDayIndex = DateTime.now().weekday - 1; // 0 = Monday
   
   @override
@@ -42,7 +42,7 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
         backgroundColor: AppColors.surface,
         elevation: 0,
         title: const Text(
-          'Mój Plan',
+          'Moja Dieta',
           style: TextStyle(
             color: AppColors.textPrimary,
             fontSize: 20,
@@ -51,18 +51,18 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add, color: AppColors.primary),
+            icon: const Icon(Icons.add, color: Color(0xFF10B981)),
             onPressed: _navigateToProgressTab,
           ),
         ],
       ),
       body: Consumer<PlanProvider>(
         builder: (context, planProvider, _) {
-          final plan = planProvider.workoutPlan;
+          final plan = planProvider.dietPlan;
           
           if (plan == null) {
             return EmptyPlanWidget(
-              dayName: 'Nie masz jeszcze planu treningowego',
+              dayName: 'Nie masz jeszcze planu dietetycznego',
               onGeneratePlan: _navigateToProgressTab,
             );
           }
@@ -118,7 +118,7 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
                         width: 50,
                         margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                         decoration: BoxDecoration(
-                          color: isSelected ? AppColors.primary : Colors.transparent,
+                          color: isSelected ? const Color(0xFF10B981) : Colors.transparent,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Center(
@@ -172,7 +172,7 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
+              color: const Color(0xFF10B981).withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
@@ -190,13 +190,13 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
         ...planDay.items.asMap().entries.map((entry) {
           final index = entry.key;
           final item = entry.value;
-          return _buildExerciseCard(item, index + 1);
+          return _buildMealCard(item, index + 1);
         }).toList(),
       ],
     );
   }
   
-  Widget _buildExerciseCard(PlanItem item, int number) {
+  Widget _buildMealCard(PlanItem item, int number) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -214,14 +214,14 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: const Color(0xFF10B981).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Center(
                   child: Text(
                     '$number',
                     style: const TextStyle(
-                      color: AppColors.primary,
+                      color: Color(0xFF10B981),
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
                     ),
@@ -262,7 +262,7 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
                   const Icon(
                     Icons.info_outline,
                     size: 16,
-                    color: AppColors.primary,
+                    color: Color(0xFF10B981),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -283,15 +283,15 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.05),
+                color: const Color(0xFF10B981).withOpacity(0.05),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 children: [
                   const Icon(
-                    Icons.lightbulb_outline,
+                    Icons.restaurant_menu,
                     size: 16,
-                    color: AppColors.primary,
+                    color: Color(0xFF10B981),
                   ),
                   const SizedBox(width: 8),
                   Expanded(

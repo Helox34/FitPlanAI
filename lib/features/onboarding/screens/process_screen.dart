@@ -1,174 +1,110 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/data/mock_data.dart';
+import '../../../core/models/models.dart';
 import '../../../core/widgets/custom_button.dart';
+import '../../chat/screens/ai_chat_screen.dart';
 
+/// Process screen showing plan creation overview
 class ProcessScreen extends StatelessWidget {
-  const ProcessScreen({super.key});
+  final CreatorMode mode;
+  
+  const ProcessScreen({
+    super.key,
+    required this.mode,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final isWorkout = mode == CreatorMode.WORKOUT;
+    
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('FitPlan AI'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
           child: Column(
             children: [
-              // Welcome Message
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppColors.primary.withOpacity(0.1),
-                      AppColors.secondary.withOpacity(0.1),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: AppColors.primary.withOpacity(0.3),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.celebration,
-                        color: AppColors.textOnPrimary,
-                        size: 32,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Cześć, Użytkownik Google! 👋',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Nie masz jeszcze aktywnego planu. Stwórzmy go!',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+              // Icon
+              Icon(
+                isWorkout ? Icons.fitness_center : Icons.restaurant,
+                size: 64,
+                color: isWorkout ? AppColors.primary : const Color(0xFF10B981),
               ),
-              const SizedBox(height: 32),
-
-              // Process Title
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.secondary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.list_alt,
-                      color: AppColors.secondary,
-                      size: 28,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'FitPlan AI: Proces Tworzenia',
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
+              const SizedBox(height: 24),
+              
+              // Title
               Text(
-                'Przejdziemy przez szczegółowy proces analityczny, aby Twój plan był w 100% dopasowany do Twoich potrzeb medycznych i treningowych.',
-                style: Theme.of(context).textTheme.bodyMedium,
+                isWorkout ? 'Plan Treningowy' : 'Plan Dietetyczny',
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 32),
-
-              // Process Steps
-              ...MockData.processSteps.asMap().entries.map((entry) {
-                final index = entry.key;
-                final step = entry.value;
-                final isLast = index == MockData.processSteps.length - 1;
-
-                return Column(
-                  children: [
-                    _buildProcessStep(
-                      context,
-                      number: step['number'],
-                      title: step['title'],
-                      description: step['description'],
-                    ),
-                    if (!isLast)
-                      Container(
-                        margin: const EdgeInsets.symmetric(vertical: 8),
-                        width: 2,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              AppColors.primary.withOpacity(0.5),
-                              AppColors.primary.withOpacity(0.2),
-                            ],
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                          ),
-                        ),
+              const SizedBox(height: 16),
+              
+              // Description
+              Text(
+                isWorkout
+                    ? 'Przygotujemy dla Ciebie spersonalizowany plan treningowy dopasowany do Twoich celów i możliwości.'
+                    : 'Przygotujemy dla Ciebie spersonalizowany plan żywieniowy dopasowany do Twoich potrzeb i preferencji.',
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: AppColors.textSecondary,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 48),
+              
+              // Process info
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      _buildInfoCard(
+                        'Czas trwania',
+                        isWorkout ? '10-15 minut' : '15-20 minut',
+                        Icons.access_time,
                       ),
-                  ],
-                );
-              }),
-              const SizedBox(height: 32),
-
-              // Action Buttons
-              Row(
-                children: [
-                  Expanded(
-                    child: CustomButton(
-                      text: 'Plan Treningowy',
-                      onPressed: () {
-                        // Navigate to workout plan creation
-                      },
-                      type: CustomButtonType.secondary,
-                      icon: Icons.fitness_center,
-                    ),
+                      const SizedBox(height: 16),
+                      _buildInfoCard(
+                        'Liczba pytań',
+                        isWorkout ? '27 pytań' : '30 pytań',
+                        Icons.quiz,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildInfoCard(
+                        'Generowanie planu',
+                        '30-60 sekund',
+                        Icons.auto_awesome,
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: CustomButton(
-                      text: 'Plan Dietetyczny',
-                      onPressed: () {
-                        // Navigate to diet plan creation
-                      },
-                      type: CustomButtonType.primary,
-                      icon: Icons.restaurant,
+                ),
+              ),
+              
+              const SizedBox(height: 24),
+              
+              // Start button
+              CustomButton(
+                text: 'Rozpocznij wywiad',
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => AIChatScreen(mode: mode),
                     ),
-                  ),
-                ],
+                  );
+                },
               ),
             ],
           ),
@@ -176,50 +112,25 @@ class ProcessScreen extends StatelessWidget {
       ),
     );
   }
-
-  Widget _buildProcessStep(
-    BuildContext context, {
-    required String number,
-    required String title,
-    required String description,
-  }) {
+  
+  Widget _buildInfoCard(String title, String value, IconData icon) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadow,
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppColors.primary,
-                  AppColors.primary.withOpacity(0.8),
-                ],
-              ),
-              shape: BoxShape.circle,
+              color: AppColors.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Center(
-              child: Text(
-                number,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: AppColors.textOnPrimary,
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-            ),
+            child: Icon(icon, color: AppColors.primary, size: 24),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -228,14 +139,19 @@ class ProcessScreen extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  description,
-                  style: Theme.of(context).textTheme.bodySmall,
+                  value,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ],
             ),

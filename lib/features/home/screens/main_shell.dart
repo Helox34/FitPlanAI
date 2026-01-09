@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../workout/screens/my_plan_screen.dart';
+import '../../diet/screens/my_diet_screen.dart';
 import '../../profile/screens/profile_screen.dart';
-import '../../chat/screens/ai_chat_screen.dart';
+import '../../progress/screens/progress_screen.dart';
+import '../../../core/models/models.dart';
+
+// Global key to access MainShell state
+final GlobalKey<_MainShellState> mainShellKey = GlobalKey<_MainShellState>();
 
 class MainShell extends StatefulWidget {
-  const MainShell({super.key});
+  MainShell({Key? key}) : super(key: key ?? mainShellKey);
 
   @override
   State<MainShell> createState() => _MainShellState();
@@ -16,7 +21,8 @@ class _MainShellState extends State<MainShell> {
 
   final List<Widget> _screens = const [
     MyPlanScreen(),
-    AIChatScreen(),
+    MyDietScreen(),
+    ProgressScreen(),
     ProfileScreen(),
   ];
 
@@ -24,6 +30,15 @@ class _MainShellState extends State<MainShell> {
     setState(() {
       _selectedIndex = index;
     });
+  }
+  
+  // Public method to change tab from outside
+  void changeTab(int index) {
+    if (index >= 0 && index < _screens.length) {
+      setState(() {
+        _selectedIndex = index;
+      });
+    }
   }
 
   @override
@@ -64,8 +79,13 @@ class _MainShellState extends State<MainShell> {
               label: 'Mój Plan',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.chat_bubble_outline),
-              activeIcon: Icon(Icons.chat_bubble),
+              icon: Icon(Icons.restaurant),
+              activeIcon: Icon(Icons.restaurant),
+              label: 'Moja Dieta',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.trending_up),
+              activeIcon: Icon(Icons.trending_up),
               label: 'Postępy',
             ),
             BottomNavigationBarItem(
