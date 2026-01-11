@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../home/screens/main_shell.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/models/models.dart';
@@ -6,7 +7,7 @@ import '../../../core/widgets/empty_plan_widget.dart';
 import '../../../providers/plan_provider.dart';
 import '../../onboarding/screens/plan_type_selection_screen.dart';
 import '../../onboarding/screens/plan_type_selection_screen.dart';
-import '../../home/screens/main_shell.dart';
+
 import '../../workout/widgets/day_selector.dart';
 
 /// Screen displaying the user's diet plan (analogous to MyPlanScreen)
@@ -30,7 +31,7 @@ class _MyDietScreenState extends State<MyDietScreen> {
   
   void _navigateToProgressTab() {
     // Switch to Progress tab (index 2)
-    final mainShellState = mainShellKey.currentState;
+    final mainShellState = context.findAncestorStateOfType<MainShellState>();
     if (mainShellState != null) {
       mainShellState.changeTab(2); // Progress tab is at index 2
     }

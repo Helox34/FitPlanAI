@@ -6,7 +6,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/custom_text_field.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../providers/user_provider.dart';
+import '../../../providers/progress_provider.dart';
 import '../../../models/subscription_plan.dart';
+import '../../../services/notification_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -236,17 +238,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
+    return Consumer<UserProvider>(
+      builder: (context, userProvider, child) {
+        // Sync text fields with provider if not currently editing
+        if (!(_isWeightEditing ?? false) && userProvider.weight != null) {
+          final text = '${userProvider.weight} kg';
+          if (_weightController.text != text) _weightController.text = text;
+        }
+        if (!(_isHeightEditing ?? false) && userProvider.height != null) {
+          final text = '${userProvider.height} cm';
+          if (_heightController.text != text) _heightController.text = text;
+        }
+        if (!(_isAgeEditing ?? false) && userProvider.age != null) {
+          final text = '${userProvider.age} lat';
+          if (_ageController.text != text) _ageController.text = text;
+        }
 
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: Text(
-          'Twój Profil',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: colorScheme.onSurface),
-        ),
+        final theme = Theme.of(context);
+        final colorScheme = theme.colorScheme;
+        final isDark = theme.brightness == Brightness.dark;
+
+        return Scaffold(
+          backgroundColor: theme.scaffoldBackgroundColor,
+          appBar: AppBar(
+            title: Text(
+              'Twój Profil',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: colorScheme.onSurface),
+            ),
         centerTitle: true,
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
@@ -328,37 +346,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: Container(
                           width: 100,
                           height: 100,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: _imageBytes == null && user.avatarUrl == null 
-                                ? AppColors.avatarColors[_selectedColorIndex] 
-                                : Colors.transparent,
-                            image: _imageBytes != null
-                                ? DecorationImage(
-                                    image: MemoryImage(_imageBytes!),
+                          child: ClipOval(
+                            child: _imageBytes != null
+                                ? Image.memory(
+                                    _imageBytes!,
                                     fit: BoxFit.cover,
+                                    width: 100,
+                                    height: 100,
                                   )
                                 : user.avatarUrl != null
-                                    ? DecorationImage(
-                                        image: NetworkImage(user.avatarUrl!),
+                                    ? Image.network(
+                                        user.avatarUrl!,
                                         fit: BoxFit.cover,
+                                        width: 100,
+                                        height: 100,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          debugPrint('Error loading avatar: $error');
+                                          return Container(
+                                            color: AppColors.avatarColors[_selectedColorIndex],
+                                            child: const Icon(
+                                              Icons.person,
+                                              size: 50,
+                                              color: Colors.white,
+                                            ),
+                                          );
+                                        },
                                       )
-                                    : null,
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Colors.black12,
-                                blurRadius: 10,
-                                offset: Offset(0, 5),
-                              ),
-                            ],
+                                    : Container(
+                                        color: AppColors.avatarColors[_selectedColorIndex],
+                                        child: const Icon(
+                                          Icons.person,
+                                          size: 50,
+                                          color: Colors.white,
+                                        ),
+                                      ),
                           ),
-                          child: _imageBytes == null && user.avatarUrl == null
-                              ? const Icon(
-                                  Icons.person,
-                                  size: 50,
-                                  color: Colors.white,
-                                )
-                              : null,
                         ),
                       ),
                       
@@ -598,6 +620,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
     );
+      },
+    );
   }
 
   Widget _buildSectionHeader(String title) {
@@ -702,10 +726,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
             controller: _weightController,
             isEditing: _isWeightEditing ?? false,
             onEditToggle: () => setState(() => _isWeightEditing = !(_isWeightEditing ?? false)),
-            onSave: () {
-              final val = double.tryParse(_weightController.text.replaceAll(RegExp(r'[^0-9.]'), ''));
+            onSave: () async {
+              // Handle comma as decimal separator and remove non-numeric chars (except dot)
+              String cleanText = _weightController.text.replaceAll(',', '.');
+              cleanText = cleanText.replaceAll(RegExp(r'[^0-9.]'), '');
+              
+              final val = double.tryParse(cleanText);
+              
               if (val != null) {
-                context.read<UserProvider>().updateWeight(val);
+                // Update User Profile
+                await context.read<UserProvider>().updateWeight(val);
+                
+                // Add to Progress Diary
+                if (context.mounted) {
+                   await context.read<ProgressProvider>().addWeightEntry(val);
+                   
+                   ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Zaktualizowano wagę i dodano wpis do dziennika!'),
+                      backgroundColor: AppColors.success,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
               }
             },
           ),
@@ -923,13 +966,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         if (isLanguageExpanded) ...[
           _buildSwitchItem('Polski', currentLang == 'pl', (v) {
-            if (v) user.changeLanguage('pl');
+            if (v && currentLang != 'pl') user.changeLanguage('pl');
           }),
           _buildSwitchItem('Angielski', currentLang == 'en', (v) {
-            if (v) user.changeLanguage('en');
+            _showComingSoonSnackBar();
           }),
           _buildSwitchItem('Niemiecki', currentLang == 'de', (v) {
-            if (v) user.changeLanguage('de');
+             _showComingSoonSnackBar();
           }),
           const SizedBox(height: 8),
         ],
@@ -966,6 +1009,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (isInfoExpanded) ...[
           _buildInfoItem('Polityka prywatności', '/privacy'),
           _buildInfoItem('Regulamin', '/terms'),
+          // Test Notification Button (Debug)
+          ListTile(
+            leading: const Icon(Icons.notifications_active, color: Colors.amber),
+            title: const Text(
+              'Przetestuj powiadomienie',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            ),
+            onTap: () async {
+              await NotificationService().showTestNotification();
+              if (mounted) {
+                 ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Wysłano testowe powiadomienie! Sprawdź pasek powiadomień.')),
+                );
+              }
+            },
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+          ),
           const SizedBox(height: 8),
         ],
       ],
@@ -998,6 +1058,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+
+  void _showComingSoonSnackBar() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Ta opcja językowa będzie dostępna wkrótce!'),
+        duration: Duration(seconds: 2),
       ),
     );
   }

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../providers/progress_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../../../providers/user_provider.dart';
 import 'register_screen.dart';
+
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -39,8 +41,8 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       
       if (mounted) {
-        // Navigation handles itself via auth state listener in main.dart
-        // or we can push manually if preferred, but listener is better
+        final currentWeight = context.read<UserProvider>().weight;
+        await context.read<ProgressProvider>().loadProgress(fallbackWeight: currentWeight);
         Navigator.of(context).pushReplacementNamed('/home');
       }
     } catch (e) {
@@ -67,17 +69,10 @@ class _LoginScreenState extends State<LoginScreen> {
       final userProvider = context.read<UserProvider>();
       await userProvider.signInWithGoogle();
       
-      debugPrint('🟢 Google Sign-In successful! User: ${userProvider.firebaseUser?.email}');
-      debugPrint('🔵 Navigating to /home...');
-      debugPrint('🔵 mounted: $mounted');
-      debugPrint('🔵 context: $context');
-      
       if (mounted) {
-        debugPrint('🔵 Calling Navigator.pushReplacementNamed...');
+        final currentWeight = userProvider.weight;
+        await context.read<ProgressProvider>().loadProgress(fallbackWeight: currentWeight);
         await Navigator.of(context).pushReplacementNamed('/home');
-        debugPrint('🟢 Navigation completed');
-      } else {
-        debugPrint('🔴 Widget not mounted, cannot navigate');
       }
     } catch (e) {
       debugPrint('🔴 Google Sign-In error: $e');
@@ -104,6 +99,8 @@ class _LoginScreenState extends State<LoginScreen> {
       await userProvider.signInWithFacebook();
       
       if (mounted) {
+        final currentWeight = userProvider.weight;
+        await context.read<ProgressProvider>().loadProgress(fallbackWeight: currentWeight);
         Navigator.of(context).pushReplacementNamed('/home');
       }
     } catch (e) {

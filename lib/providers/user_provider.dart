@@ -6,6 +6,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import '../core/models/models.dart';
 import '../models/subscription_plan.dart';
+import '../services/notification_service.dart';
 
 /// Provider for managing user profile and settings
 class UserProvider with ChangeNotifier {
@@ -215,18 +216,22 @@ class UserProvider with ChangeNotifier {
     if (app != null) {
       _notifyApp = app;
       await prefs.setBool('notify_app', app);
+      // App notifications general toggle logic if needed
     }
     if (plan != null) {
       _notifyPlan = plan;
       await prefs.setBool('notify_plan', plan);
+      await NotificationService().scheduleTrainingReminder(plan);
     }
     if (diet != null) {
       _notifyDiet = diet;
       await prefs.setBool('notify_diet', diet);
+      await NotificationService().scheduleDietReminders(diet);
     }
     if (water != null) {
       _notifyWater = water;
       await prefs.setBool('notify_water', water);
+      await NotificationService().scheduleWaterReminders(water);
     }
     
     notifyListeners();
@@ -418,6 +423,9 @@ class UserProvider with ChangeNotifier {
       throw _handleAuthError(e);
     } catch (e) {
       debugPrint('🔴 UserProvider: Error during Google Sign-In: $e');
+      if (e.toString().contains('popup_closed')) {
+        throw 'Błąd logowania przez Google: anulowano logowanie';
+      }
       throw 'Błąd logowania przez Google: $e';
     }
   }

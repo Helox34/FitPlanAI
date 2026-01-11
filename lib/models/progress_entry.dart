@@ -1,9 +1,11 @@
 class ProgressEntry {
+  final String? id; // Firestore Document ID
   final DateTime date;
   final double value;
   final String? notes;
 
   ProgressEntry({
+    this.id,
     required this.date,
     required this.value,
     this.notes,
@@ -17,8 +19,9 @@ class ProgressEntry {
     };
   }
 
-  factory ProgressEntry.fromJson(Map<String, dynamic> json) {
+  factory ProgressEntry.fromJson(Map<String, dynamic> json, {String? id}) {
     return ProgressEntry(
+      id: id,
       date: DateTime.parse(json['date']),
       value: json['value'],
       notes: json['notes'],

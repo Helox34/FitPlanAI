@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/models/models.dart';
 import '../../../providers/plan_provider.dart';
 import '../../../providers/progress_provider.dart';
+import '../../../providers/user_provider.dart';
 import '../../onboarding/screens/plan_type_selection_screen.dart';
 
 class ProgressScreen extends StatefulWidget {
@@ -19,19 +20,36 @@ class _ProgressScreenState extends State<ProgressScreen> {
   @override
   void initState() {
     super.initState();
+    // Still load initially, but the main check will be in didChangeDependencies
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ProgressProvider>().loadProgress().then((_) {
-        _checkPrompts();
-      });
+      context.read<ProgressProvider>().loadProgress();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final userProvider = context.read<UserProvider>();
+    final progressProvider = context.read<ProgressProvider>();
+
+    // If User has weight but History is initialized and empty, try backfill
+    if (userProvider.weight != null && 
+        progressProvider.weightEntries.isEmpty && 
+        !progressProvider.isLoading) { // Ensure isLoading getter exists or add it
+        
+        // We use addPostFrameCallback to avoid build-phase side-effects
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+           progressProvider.loadProgress(fallbackWeight: userProvider.weight).then((_) {
+             _checkPrompts();
+           });
+        });
+    }
   }
 
   void _checkPrompts() {
     final provider = context.read<ProgressProvider>();
     if (provider.shouldPromptWeight) {
       _showEntryDialog(isWeight: true, title: 'Czas na pomiar wagi!', subtitle: 'Minął tydzień od ostatniego wpisu.');
-    } else if (provider.shouldPromptStrength) {
-      _showEntryDialog(isWeight: false, title: 'Czas na test siły!', subtitle: 'Sprawdź swoje postępy siłowe.');
     }
   }
 
@@ -48,7 +66,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(title ?? (isWeight ? 'Aktualna waga' : 'Progres siłowy')),
+        title: Text(title ?? 'Aktualna waga'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -60,10 +78,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
             TextField(
               controller: controller,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(
-                labelText: isWeight ? 'Waga (kg)' : 'Wynik (kg/pkt)',
-                border: const OutlineInputBorder(),
-                suffixText: isWeight ? 'kg' : '',
+              decoration: const InputDecoration(
+                labelText: 'Waga (kg)',
+                border: OutlineInputBorder(),
+                suffixText: 'kg',
               ),
             ),
           ],
@@ -77,15 +95,38 @@ class _ProgressScreenState extends State<ProgressScreen> {
             onPressed: () {
               final val = double.tryParse(controller.text.replaceAll(',', '.'));
               if (val != null) {
-                if (isWeight) {
-                  context.read<ProgressProvider>().addWeightEntry(val);
-                } else {
-                  context.read<ProgressProvider>().addStrengthEntry(val);
-                }
+                // Add to history
+                context.read<ProgressProvider>().addWeightEntry(val);
+                // Sync with User Profile
+                context.read<UserProvider>().updateWeight(val);
                 Navigator.pop(context);
               }
             },
             child: const Text('Zapisz'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDelete(BuildContext context, int index) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Usuń wpis'),
+        content: const Text('Czy na pewno chcesz usunąć ten pomiar?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Anuluj'),
+          ),
+          TextButton(
+            onPressed: () {
+              context.read<ProgressProvider>().deleteWeightEntry(index);
+              Navigator.pop(context);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Usuń'),
           ),
         ],
       ),
@@ -101,8 +142,12 @@ class _ProgressScreenState extends State<ProgressScreen> {
       ),
       body: Consumer2<PlanProvider, ProgressProvider>(
         builder: (context, planProvider, progressProvider, _) {
+          if (progressProvider.isLoading && progressProvider.weightEntries.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
           return SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(16), // Reduced padding for wider chart
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -114,12 +159,12 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
-                      'Dzienniczek Postępów',
+                      'Dzienniczek Wagi',
                       style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.refresh),
-                      onPressed: () => _checkPrompts(), // Manual check or just refresh
+                      icon: const Icon(Icons.add_circle, color: AppColors.primary, size: 28),
+                      onPressed: () => _showEntryDialog(isWeight: true),
                     ),
                   ],
                 ),
@@ -129,24 +174,75 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   title: 'Waga Ciała',
                   entries: progressProvider.weightEntries,
                   color: Colors.blueAccent,
-                  isWeight: true,
-                  onAdd: () => _showEntryDialog(isWeight: true),
                 ),
+                
                 const SizedBox(height: 24),
-                _buildChartCard(
-                  title: 'Progres Siłowy',
-                  subtitle: 'Szacowany wzrost siły ogólnej',
-                  entries: progressProvider.strengthEntries,
-                  color: AppColors.primary,
-                  isWeight: false,
-                  onAdd: () => _showEntryDialog(isWeight: false),
+                const Text(
+                  'Historia pomiarów',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
+                const SizedBox(height: 8),
+                _buildHistoryList(progressProvider),
                 const SizedBox(height: 40),
               ],
             ),
           );
         },
       ),
+    );
+  }
+
+  Widget _buildHistoryList(ProgressProvider provider) {
+    final entries = provider.weightEntries.reversed.toList(); // Show newest first
+    
+    if (entries.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 20),
+        child: Text('Brak pomiarów w historii.', style: TextStyle(color: Colors.grey)),
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: entries.length,
+      itemBuilder: (context, index) {
+        final entry = entries[index];
+        // Calculate original index for deletion (since we reversed the list)
+        final originalIndex = provider.weightEntries.length - 1 - index;
+        
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          elevation: 0,
+          color: Theme.of(context).cardColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.grey.withOpacity(0.1)),
+          ),
+          child: ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.blueAccent.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.monitor_weight_outlined, size: 20, color: Colors.blueAccent),
+            ),
+            title: Text(
+              '${entry.value} kg',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(
+              DateFormat('d MMMM yyyy, HH:mm').format(entry.date),
+              style: const TextStyle(fontSize: 12),
+            ),
+            trailing: IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.red),
+              onPressed: () => _confirmDelete(context, originalIndex),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -163,7 +259,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
         ),
         const SizedBox(height: 8),
         const Text(
-          'Zarządzaj swoimi planami treningowymi i dietetycznymi',
+          'Zarządzaj swoimi planami',
           style: TextStyle(color: Colors.grey),
         ),
         const SizedBox(height: 16),
@@ -199,6 +295,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
     required bool isActive,
     required VoidCallback onTap,
   }) {
+    // ... (This part remains similar or simplified)
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -207,7 +304,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
       ),
       child: ListTile(
         onTap: isActive ? null : onTap,
-        contentPadding: const EdgeInsets.all(16),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
@@ -231,44 +328,24 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
   Widget _buildChartCard({
     required String title,
-    String? subtitle,
-    required List<dynamic> entries, // List of ProgressEntry
+    required List<dynamic> entries, 
     required Color color,
-    required bool isWeight,
-    required VoidCallback onAdd,
   }) {
     if (entries.isEmpty) {
       return Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              if (subtitle != null) Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-              const SizedBox(height: 24),
-              Icon(Icons.show_chart, size: 48, color: Colors.grey[300]),
-              const SizedBox(height: 16),
-              Text('Brak danych. Dodaj pierwszy wpis!', style: TextStyle(color: Colors.grey[600])),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: onAdd,
-                icon: const Icon(Icons.add),
-                label: const Text('Dodaj wpis'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: color,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ],
-          ),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: Colors.grey.withOpacity(0.2)),
+        ),
+        child: const Padding(
+          padding: EdgeInsets.all(32.0),
+          child: Center(child: Text('Brak danych do wykresu')),
         ),
       );
     }
 
-    // Prepare chart data
+    // Chart Data Preparation
     List<FlSpot> spots = [];
     double minY = double.infinity;
     double maxY = double.negativeInfinity;
@@ -280,7 +357,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
         spots.add(FlSpot(i.toDouble(), val));
     }
     
-    // Adjust Y axis range for better visualization
+    // Dynamic Y axis margins
     double yMargin = (maxY - minY) * 0.2;
     if (yMargin == 0) yMargin = 5; 
     minY -= yMargin;
@@ -291,44 +368,27 @@ class _ProgressScreenState extends State<ProgressScreen> {
       shadowColor: Colors.black12,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(16, 24, 24, 24), // Right padding for labels
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    if (subtitle != null) 
-                      Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                  ],
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '${entries.last.value} ${isWeight ? "kg" : "pkt"}',
-                    style: TextStyle(color: color, fontWeight: FontWeight.bold),
-                  ),
-                ),
+                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Text('${entries.last.value} kg', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 18)),
               ],
             ),
             const SizedBox(height: 24),
             SizedBox(
-              height: 200,
+              height: 220,
+              width: double.infinity,
               child: LineChart(
                 LineChartData(
                   gridData: FlGridData(
                     show: true,
                     drawVerticalLine: false,
                     getDrawingHorizontalLine: (value) => 
-                      FlLine(color: Colors.grey.withOpacity(0.1), strokeWidth: 1, dashArray: [5, 5]),
+                      FlLine(color: Colors.grey.withOpacity(0.1), strokeWidth: 1),
                   ),
                   titlesData: FlTitlesData(
                     show: true,
@@ -338,18 +398,18 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       sideTitles: SideTitles(
                         showTitles: true,
                         reservedSize: 30,
-                        interval: 1,
+                        interval: entries.length > 5 ? (entries.length / 5).toDouble() : 1, // Avoid crowding
                         getTitlesWidget: (value, meta) {
-                          if (value % 1 != 0) return const SizedBox();
                           int index = value.toInt();
                           if (index >= 0 && index < entries.length) {
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 8.0),
-                              child: Text(
-                                DateFormat('d MMM').format(entries[index].date),
-                                style: const TextStyle(color: Colors.grey, fontSize: 10),
-                              ),
-                            );
+                             // Only show ~5 dates max
+                             return Padding(
+                               padding: const EdgeInsets.only(top: 8.0),
+                               child: Text(
+                                 DateFormat('d MMM').format(entries[index].date),
+                                 style: const TextStyle(color: Colors.grey, fontSize: 10),
+                               ),
+                             );
                           }
                           return const SizedBox();
                         },
@@ -379,30 +439,20 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       spots: spots,
                       isCurved: true,
                       color: color,
-                      barWidth: 3,
+                      barWidth: 4,
                       isStrokeCapRound: true,
                       dotData: const FlDotData(show: true),
                       belowBarData: BarAreaData(
                         show: true,
-                        color: color.withOpacity(0.1),
+                        color: color.withOpacity(0.15),
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [color.withOpacity(0.5), color.withOpacity(0.0)],
+                        ),
                       ),
                     ),
                   ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: onAdd,
-                icon: const Icon(Icons.add),
-                label: const Text('Dodaj nowy wpis'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: color,
-                  side: BorderSide(color: color),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             ),

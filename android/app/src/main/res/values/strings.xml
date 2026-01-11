@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FitPlan AI</string>
+    <string name="facebook_app_id">782441738202292</string>
+    <string name="fb_login_protocol_scheme">fb782441738202292</string>
+    <string name="facebook_client_token">4373355f5f240c768097c976961cd685</string>
+</resources>

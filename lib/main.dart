@@ -14,6 +14,7 @@ import 'providers/chat_provider.dart';
 import 'providers/plan_provider.dart';
 import 'providers/user_provider.dart';
 import 'providers/progress_provider.dart';
+import 'services/notification_service.dart';
 
 import 'providers/live_workout_provider.dart';
 
@@ -27,6 +28,11 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  
+  // Initialize Notifications
+  final notificationService = NotificationService();
+  await notificationService.initialize();
+  await notificationService.requestPermissions();
   
   runApp(const FitPlanAIApp());
 }

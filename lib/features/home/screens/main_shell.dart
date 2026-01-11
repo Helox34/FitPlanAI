@@ -6,17 +6,14 @@ import '../../profile/screens/profile_screen.dart';
 import '../../progress/screens/progress_screen.dart';
 import '../../../core/models/models.dart';
 
-// Global key to access MainShell state
-final GlobalKey<_MainShellState> mainShellKey = GlobalKey<_MainShellState>();
-
 class MainShell extends StatefulWidget {
-  MainShell({Key? key}) : super(key: key ?? mainShellKey);
+  const MainShell({super.key});
 
   @override
-  State<MainShell> createState() => _MainShellState();
+  State<MainShell> createState() => MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
 
   final List<Widget> _screens = const [
@@ -31,7 +28,7 @@ class _MainShellState extends State<MainShell> {
       _selectedIndex = index;
     });
   }
-  
+
   // Public method to change tab from outside
   void changeTab(int index) {
     if (index >= 0 && index < _screens.length) {

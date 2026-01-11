@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import '../../home/screens/main_shell.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/models/models.dart';
 import '../../../core/widgets/empty_plan_widget.dart';
 import '../../../providers/plan_provider.dart';
-import '../../home/screens/main_shell.dart';
+
 import '../widgets/exercise_card.dart';
 import '../widgets/day_selector.dart';
 import '../widgets/day_selector.dart';
@@ -32,7 +33,7 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
   }
   
   void _navigateToProgressTab() {
-    final mainShellState = mainShellKey.currentState;
+    final mainShellState = context.findAncestorStateOfType<MainShellState>();
     if (mainShellState != null) {
       mainShellState.changeTab(2); // Progress tab is at index 2
     }
