@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import '../core/models/models.dart';
 
 /// Provider for managing user profile and settings
@@ -49,6 +52,8 @@ class UserProvider with ChangeNotifier {
   /// Load user data from storage
   Future<void> loadUserData() async {
     try {
+      initAuthListener(); // Start listening to Firebase Auth
+      
       final prefs = await SharedPreferences.getInstance();
       
       _age = prefs.getInt('user_age');
@@ -110,6 +115,9 @@ class UserProvider with ChangeNotifier {
     
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('user_nickname', nickname);
+
+    // Sync with Firebase
+    await _auth.currentUser?.updateDisplayName(nickname);
     
     notifyListeners();
   }
@@ -120,6 +128,9 @@ class UserProvider with ChangeNotifier {
     
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('user_avatar_url', url);
+
+    // Sync with Firebase
+    await _auth.currentUser?.updatePhotoURL(url);
     
     notifyListeners();
   }
@@ -265,5 +276,210 @@ class UserProvider with ChangeNotifier {
     _streakBest = best;
     
     notifyListeners();
+  }
+
+  // ===========================================================================
+  // FIREBASE AUTHENTICATION
+  // ===========================================================================
+
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  User? _firebaseUser;
+  
+  User? get firebaseUser => _firebaseUser;
+  bool get isLoggedIn => _firebaseUser != null;
+
+  /// Listen to Auth State Changes
+  void initAuthListener() {
+    _auth.authStateChanges().listen((User? user) async {
+      _firebaseUser = user;
+      
+      // If user just logged in, restore their profile data from Firebase
+      if (user != null) {
+        debugPrint('🔵 Auth state changed: User logged in - ${user.email}');
+        
+        final prefs = await SharedPreferences.getInstance();
+        
+        // Restore nickname from Firebase displayName
+        if (user.displayName != null && user.displayName!.isNotEmpty) {
+          if (_nickname != user.displayName) {
+            debugPrint('🔵 Restoring nickname from Firebase: ${user.displayName}');
+            _nickname = user.displayName;
+            await prefs.setString('nickname', user.displayName!);
+          }
+        }
+        
+        // Restore avatar from Firebase photoURL
+        if (user.photoURL != null && user.photoURL!.isNotEmpty) {
+          if (_avatarUrl != user.photoURL) {
+            debugPrint('🔵 Restoring avatar from Firebase: ${user.photoURL}');
+            _avatarUrl = user.photoURL;
+            await prefs.setString('avatarUrl', user.photoURL!);
+          }
+        }
+      } else {
+        debugPrint('🔵 Auth state changed: User logged out');
+      }
+      
+      notifyListeners();
+    });
+  }
+
+  /// Sign In with Email & Password
+  Future<void> signIn(String email, String password) async {
+    try {
+      await _auth.signInWithEmailAndPassword(email: email, password: password);
+    } on FirebaseAuthException catch (e) {
+      throw _handleAuthError(e);
+    } catch (e) {
+      throw 'Wystąpił nieoczekiwany błąd logowania.';
+    }
+  }
+
+  /// Sign Up with Email & Password
+  Future<void> signUp(String email, String password) async {
+    try {
+      await _auth.createUserWithEmailAndPassword(email: email, password: password);
+    } on FirebaseAuthException catch (e) {
+      throw _handleAuthError(e);
+    } catch (e) {
+      throw 'Wystąpił nieoczekiwany błąd rejestracji.';
+    }
+  }
+
+  /// Sign In with Google
+  Future<void> signInWithGoogle() async {
+    try {
+      debugPrint('🔵 UserProvider: Starting Google Sign-In');
+      // For web, we need to specify the clientId and use minimal scopes
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        clientId: kIsWeb ? '733835310780-skijm4f6hmjcctrrb4s2hfnq052lvo2m.apps.googleusercontent.com' : null,
+        scopes: ['email'], // Only request email scope to avoid People API requirement
+      );
+      
+      debugPrint('🔵 UserProvider: Calling googleSignIn.signIn()');
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      
+      if (googleUser == null) {
+        debugPrint('🟡 UserProvider: User cancelled Google Sign-In');
+        throw 'Anulowano logowanie przez Google.';
+      }
+      
+      debugPrint('🔵 UserProvider: Got Google user: ${googleUser.email}');
+      debugPrint('🔵 UserProvider: Getting authentication');
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      
+      debugPrint('🔵 UserProvider: Creating Firebase credential');
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      
+      debugPrint('🔵 UserProvider: Signing in with Firebase credential');
+      final userCredential = await _auth.signInWithCredential(credential);
+      debugPrint('🟢 UserProvider: Firebase sign-in successful! UID: ${userCredential.user?.uid}');
+      
+      // Update nickname from Google display name if available
+      if (userCredential.user?.displayName != null) {
+        debugPrint('🔵 UserProvider: Updating nickname to: ${userCredential.user!.displayName}');
+        await updateNickname(userCredential.user!.displayName!);
+      }
+      
+      // Update avatar from Google photo if available
+      if (userCredential.user?.photoURL != null) {
+        debugPrint('🔵 UserProvider: Updating avatar from Google: ${userCredential.user!.photoURL}');
+        await updateAvatarUrl(userCredential.user!.photoURL!);
+      } else if (googleUser.photoUrl != null) {
+        // Fallback to GoogleSignInAccount photo if Firebase doesn't have it
+        debugPrint('🔵 UserProvider: Updating avatar from GoogleSignInAccount: ${googleUser.photoUrl}');
+        await updateAvatarUrl(googleUser.photoUrl!);
+      }
+      
+      debugPrint('🟢 UserProvider: Google Sign-In completed successfully');
+    } on FirebaseAuthException catch (e) {
+      debugPrint('🔴 UserProvider: FirebaseAuthException: ${e.code} - ${e.message}');
+      throw _handleAuthError(e);
+    } catch (e) {
+      debugPrint('🔴 UserProvider: Error during Google Sign-In: $e');
+      throw 'Błąd logowania przez Google: $e';
+    }
+  }
+
+  /// Sign In with Facebook
+  Future<void> signInWithFacebook() async {
+    try {
+      final LoginResult result = await FacebookAuth.instance.login();
+      
+      if (result.status != LoginStatus.success) {
+        throw 'Anulowano logowanie przez Facebook.';
+      }
+      
+      final OAuthCredential credential = FacebookAuthProvider.credential(result.accessToken!.tokenString);
+      await _auth.signInWithCredential(credential);
+    } on FirebaseAuthException catch (e) {
+      throw _handleAuthError(e);
+    } catch (e) {
+      throw 'Błąd logowania przez Facebook: $e';
+    }
+  }
+
+  /// Sign Out
+  Future<void> signOut() async {
+    try {
+      await _auth.signOut();
+      
+      // Only sign out from Google if on web (to avoid initialization error)
+      if (kIsWeb) {
+        try {
+          final googleSignIn = GoogleSignIn(
+            clientId: '733835310780-skijm4f6hmjcctrrb4s2hfnq052lvo2m.apps.googleusercontent.com',
+          );
+          await googleSignIn.signOut();
+        } catch (e) {
+          debugPrint('Google sign out error: $e');
+        }
+      } else {
+        await GoogleSignIn().signOut();
+      }
+      
+      await FacebookAuth.instance.logOut();
+      await clearUserData();
+    } catch (e) {
+      debugPrint('Sign out error: $e');
+      // Still clear local data even if remote sign out fails
+      await clearUserData();
+    }
+  }
+
+  /// Delete Account
+  Future<void> deleteAccount() async {
+    try {
+      await _auth.currentUser?.delete();
+      await clearUserData();
+    } catch (e) {
+      throw 'Nie udało się usunąć konta. Zaloguj się ponownie i spróbuj jeszcze raz.';
+    }
+  }
+
+  String _handleAuthError(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'user-not-found':
+        return 'Nie znaleziono użytkownika o podanym adresie e-mail.';
+      case 'wrong-password':
+        return 'Nieprawidłowe hasło.';
+      case 'email-already-in-use':
+        return 'Ten adres e-mail jest już zajęty.';
+      case 'invalid-email':
+        return 'Nieprawidłowy format adresu e-mail.';
+      case 'weak-password':
+        return 'Hasło jest zbyt słabe.';
+      case 'network-request-failed':
+        return 'Błąd połączenia. Sprawdź internet.';
+      case 'operation-not-allowed':
+        return 'Logowanie hasłem nie jest włączone w konsoli Firebase.';
+      case 'too-many-requests':
+        return 'Zbyt wiele nieudanych prób. Spróbuj później.';
+      default:
+        return 'Błąd uwierzytelniania (${e.code}): ${e.message}';
+    }
   }
 }

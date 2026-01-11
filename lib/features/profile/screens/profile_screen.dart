@@ -16,8 +16,8 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController(text: 'Jan Kowalski');
-  final _emailController = TextEditingController(text: 'user@google.com');
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
   int _selectedColorIndex = 2;
   
   // Image Picker state
@@ -105,6 +105,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         if (user.nickname != null && user.nickname!.isNotEmpty) {
            _nameController.text = user.nickname!;
+        }
+        
+        // Load email from Firebase
+        if (user.firebaseUser?.email != null) {
+          _emailController.text = user.firebaseUser!.email!;
         }
         
         _weightController.text = user.weight != null ? '${user.weight} kg' : '';
@@ -205,9 +210,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: const Text('Anuluj'),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.read<UserProvider>().clearUserData();
+            onPressed: () async {
+              Navigator.pop(context); // Close dialog
+              await context.read<UserProvider>().signOut();
+              if (context.mounted) {
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  '/login',
+                  (route) => false, // Remove all previous routes
+                );
+              }
             },
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
             child: const Text('Wyloguj się'),
@@ -245,37 +256,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Column(
             children: [
               // Avatar Section
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                   Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _imageBytes == null ? AppColors.avatarColors[_selectedColorIndex] : Colors.transparent,
-                      image: _imageBytes != null
-                          ? DecorationImage(
-                              image: MemoryImage(_imageBytes!),
-                              fit: BoxFit.cover,
-                            )
-                          : null,
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 10,
-                          offset: Offset(0, 5),
+              Consumer<UserProvider>(
+                builder: (context, user, child) {
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _imageBytes == null && user.avatarUrl == null 
+                              ? AppColors.avatarColors[_selectedColorIndex] 
+                              : Colors.transparent,
+                          image: _imageBytes != null
+                              ? DecorationImage(
+                                  image: MemoryImage(_imageBytes!),
+                                  fit: BoxFit.cover,
+                                )
+                              : user.avatarUrl != null
+                                  ? DecorationImage(
+                                      image: NetworkImage(user.avatarUrl!),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : null,
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 10,
+                              offset: Offset(0, 5),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: _imageBytes == null
-                        ? const Icon(
-                            Icons.person,
-                            size: 50,
-                            color: Colors.white,
-                          )
-                        : null,
-                  ),
+                        child: _imageBytes == null && user.avatarUrl == null
+                            ? const Icon(
+                                Icons.person,
+                                size: 50,
+                                color: Colors.white,
+                              )
+                            : null,
+                      ),
                   Positioned(
                     bottom: 0, 
                     right: 0,
@@ -293,7 +313,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   )
                 ],
-              ),
+              );
+            },
+          ),
               
               const SizedBox(height: 12),
               
@@ -319,38 +341,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
               
-              const SizedBox(height: 16),
-              
-              // Color Picker
-               Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  AppColors.avatarColors.length,
-                  (index) => GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedColorIndex = index;
-                      });
-                    },
-                    child: Container(
-                      width: 32,
-                      height: 32,
-                      margin: const EdgeInsets.symmetric(horizontal: 6),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.avatarColors[index],
-                        border: Border.all(
-                          color: _selectedColorIndex == index
-                              ? AppColors.textPrimary
-                              : Colors.transparent,
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              
               const SizedBox(height: 32),
 
               // Form Fields
@@ -373,6 +363,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                    ),
                   CustomTextField(
                     controller: _emailController,
+                    enabled: false,
                     prefixIcon: const Icon(Icons.email_outlined),
                     suffixIcon: Container(
                       margin: const EdgeInsets.all(8),

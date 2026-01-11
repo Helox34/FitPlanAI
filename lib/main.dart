@@ -83,16 +83,21 @@ class _AppInitializerState extends State<AppInitializer> {
     final userProvider = context.read<UserProvider>();
     await userProvider.loadUserData();
     
+    // Give Firebase a moment to restore session if any
+    // (UserProvider listener updates _firebaseUser, but we might need a small delay or check currentUser directly)
+    await Future.delayed(const Duration(milliseconds: 500));
+    
     if (mounted) {
-      // Check if user has completed initial survey
-      if (userProvider.hasCompletedInitialSurvey) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => MainShell()),
-        );
+      if (userProvider.isLoggedIn) {
+        // User is logged in, check survey
+        if (userProvider.hasCompletedInitialSurvey) {
+           Navigator.of(context).pushReplacementNamed('/home');
+        } else {
+           Navigator.of(context).pushReplacementNamed('/survey');
+        }
       } else {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const InitialSurveyScreen()),
-        );
+        // Not logged in -> Login Screen
+        Navigator.of(context).pushReplacementNamed('/login');
       }
     }
   }

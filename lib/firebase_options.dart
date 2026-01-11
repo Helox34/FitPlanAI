@@ -41,45 +41,51 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyDGxK8vZ9X4qJ0YxQxQxQxQxQxQxQxQxQx',
-    appId: '1:123456789:web:abcdef123456',
-    messagingSenderId: '123456789',
+    apiKey: 'AIzaSyD57Zif6uUWlZw5162gC-ab7k9WEoJ_I9g',
+    appId: '1:733835310780:web:3414fa3a6584de4337c2b9',
+    messagingSenderId: '733835310780',
     projectId: 'fitplanai-bd88c',
     authDomain: 'fitplanai-bd88c.firebaseapp.com',
-    storageBucket: 'fitplanai-bd88c.appspot.com',
+    storageBucket: 'fitplanai-bd88c.firebasestorage.app',
+    measurementId: 'G-3FKDHEFNJJ',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDGxK8vZ9X4qJ0YxQxQxQxQxQxQxQxQxQx',
-    appId: '1:123456789:android:abcdef123456',
-    messagingSenderId: '123456789',
+    apiKey: 'AIzaSyCk0RADcKQnYh3jwiZl4xmhN93r1S0E8PM',
+    appId: '1:733835310780:android:b4d50f5d0eb6863f37c2b9',
+    messagingSenderId: '733835310780',
     projectId: 'fitplanai-bd88c',
-    storageBucket: 'fitplanai-bd88c.appspot.com',
+    storageBucket: 'fitplanai-bd88c.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDGxK8vZ9X4qJ0YxQxQxQxQxQxQxQxQxQx',
-    appId: '1:123456789:ios:abcdef123456',
-    messagingSenderId: '123456789',
+    apiKey: 'AIzaSyBdzi0MfJBrvO_MaaozAJA2_JLXf8sPsiI',
+    appId: '1:733835310780:ios:e4ae46702a737d5b37c2b9',
+    messagingSenderId: '733835310780',
     projectId: 'fitplanai-bd88c',
-    storageBucket: 'fitplanai-bd88c.appspot.com',
-    iosBundleId: 'com.fitplanai.app',
+    storageBucket: 'fitplanai-bd88c.firebasestorage.app',
+    iosClientId: '733835310780-7v4vbf663rc4k8h3jgu5g86q7svd046u.apps.googleusercontent.com',
+    iosBundleId: 'com.fitplanai.fitplanAi',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyDGxK8vZ9X4qJ0YxQxQxQxQxQxQxQxQxQx',
-    appId: '1:123456789:macos:abcdef123456',
-    messagingSenderId: '123456789',
+    apiKey: 'AIzaSyBdzi0MfJBrvO_MaaozAJA2_JLXf8sPsiI',
+    appId: '1:733835310780:ios:e4ae46702a737d5b37c2b9',
+    messagingSenderId: '733835310780',
     projectId: 'fitplanai-bd88c',
-    storageBucket: 'fitplanai-bd88c.appspot.com',
-    iosBundleId: 'com.fitplanai.app',
+    storageBucket: 'fitplanai-bd88c.firebasestorage.app',
+    iosClientId: '733835310780-7v4vbf663rc4k8h3jgu5g86q7svd046u.apps.googleusercontent.com',
+    iosBundleId: 'com.fitplanai.fitplanAi',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyDGxK8vZ9X4qJ0YxQxQxQxQxQxQxQxQxQx',
-    appId: '1:123456789:windows:abcdef123456',
-    messagingSenderId: '123456789',
+    apiKey: 'AIzaSyD57Zif6uUWlZw5162gC-ab7k9WEoJ_I9g',
+    appId: '1:733835310780:web:35ff7a5a406259a037c2b9',
+    messagingSenderId: '733835310780',
     projectId: 'fitplanai-bd88c',
-    storageBucket: 'fitplanai-bd88c.appspot.com',
+    authDomain: 'fitplanai-bd88c.firebaseapp.com',
+    storageBucket: 'fitplanai-bd88c.firebasestorage.app',
+    measurementId: 'G-G9S59V9MN3',
   );
+
 }

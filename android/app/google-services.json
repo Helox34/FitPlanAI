@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "733835310780",
+    "project_id": "fitplanai-bd88c",
+    "storage_bucket": "fitplanai-bd88c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:733835310780:android:b4d50f5d0eb6863f37c2b9",
+        "android_client_info": {
+          "package_name": "com.fitplanai.fitplan_ai"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "733835310780-skijm4f6hmjcctrrb4s2hfnq052lvo2m.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCk0RADcKQnYh3jwiZl4xmhN93r1S0E8PM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "733835310780-skijm4f6hmjcctrrb4s2hfnq052lvo2m.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
