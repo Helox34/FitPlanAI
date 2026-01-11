@@ -7,9 +7,13 @@ import 'core/theme/app_theme.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/home/screens/main_shell.dart';
 import 'features/onboarding/screens/initial_survey_screen.dart';
+import 'features/legal/screens/terms_of_service_screen.dart';
+import 'features/legal/screens/privacy_policy_screen.dart';
+import 'features/subscription/screens/subscription_screen.dart';
 import 'providers/chat_provider.dart';
 import 'providers/plan_provider.dart';
 import 'providers/user_provider.dart';
+import 'providers/progress_provider.dart';
 
 import 'providers/live_workout_provider.dart';
 
@@ -34,9 +38,10 @@ class FitPlanAIApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => ChatProvider()),
-        ChangeNotifierProvider(create: (_) => PlanProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => PlanProvider()),
+        ChangeNotifierProvider(create: (_) => ProgressProvider()),
+        ChangeNotifierProvider(create: (_) => ChatProvider()), // Retained ChatProvider as it was not explicitly removed
         ChangeNotifierProxyProvider<PlanProvider, LiveWorkoutProvider>(
           create: (context) => LiveWorkoutProvider(context.read<PlanProvider>()),
           update: (context, planProvider, previous) => 
@@ -56,6 +61,9 @@ class FitPlanAIApp extends StatelessWidget {
               '/login': (context) => const LoginScreen(),
               '/survey': (context) => const InitialSurveyScreen(),
               '/home': (context) => MainShell(),
+              '/terms': (context) => const TermsOfServiceScreen(),
+              '/privacy': (context) => const PrivacyPolicyScreen(),
+              '/subscription': (context) => const SubscriptionScreen(),
             },
           );
         },

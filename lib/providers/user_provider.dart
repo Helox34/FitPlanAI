@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import '../core/models/models.dart';
+import '../models/subscription_plan.dart';
 
 /// Provider for managing user profile and settings
 class UserProvider with ChangeNotifier {
@@ -17,6 +18,10 @@ class UserProvider with ChangeNotifier {
   String? _nickname;
   String? _avatarUrl;
   bool _surveyCompleted = false;
+  
+  // Subscription
+  SubscriptionTier _subscriptionTier = SubscriptionTier.free;
+  DateTime? _subscriptionExpiryDate;
 
   // Notification Settings
   bool _notifyApp = true;
@@ -33,6 +38,10 @@ class UserProvider with ChangeNotifier {
   double? get height => _height;
   String? get nickname => _nickname;
   String? get avatarUrl => _avatarUrl;
+  
+  // Subscription Getters
+  SubscriptionTier get subscriptionTier => _subscriptionTier;
+  DateTime? get subscriptionExpiryDate => _subscriptionExpiryDate;
 
   // Notification Getters
   bool get notifyApp => _notifyApp;
@@ -75,6 +84,14 @@ class UserProvider with ChangeNotifier {
       _streakCurrent = prefs.getInt('streak_current') ?? 0;
       _streakBest = prefs.getInt('streak_best') ?? 0;
       
+      // Load Subscription
+      final tierIndex = prefs.getInt('subscription_tier') ?? 0;
+      _subscriptionTier = SubscriptionTier.values[tierIndex];
+      final expiryMillis = prefs.getInt('subscription_expiry');
+      if (expiryMillis != null) {
+        _subscriptionExpiryDate = DateTime.fromMillisecondsSinceEpoch(expiryMillis);
+      }
+      
       notifyListeners();
     } catch (e) {
       debugPrint('Error loading user data: $e');
@@ -90,15 +107,16 @@ class UserProvider with ChangeNotifier {
     _age = age;
     _weight = weight;
     _height = height;
-    
+    _surveyCompleted = true;
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('user_age', age);
     await prefs.setDouble('user_weight', weight);
     await prefs.setDouble('user_height', height);
-    
+    await prefs.setBool('survey_completed', true);
+
     notifyListeners();
   }
-  
   /// Mark initial survey as completed
   Future<void> markSurveyCompleted() async {
     _surveyCompleted = true;
@@ -420,6 +438,41 @@ class UserProvider with ChangeNotifier {
     } catch (e) {
       throw 'Błąd logowania przez Facebook: $e';
     }
+  }
+  
+  /// Upgrade Subscription
+  Future<void> upgradeSubscription(SubscriptionTier newTier) async {
+    try {
+      _subscriptionTier = newTier;
+      
+      // Set expiry date based on tier
+      if (newTier != SubscriptionTier.free) {
+        // For demo: set expiry to 30 days from now
+        // In production, this would be set by payment processor
+        _subscriptionExpiryDate = DateTime.now().add(const Duration(days: 30));
+      } else {
+        _subscriptionExpiryDate = null;
+      }
+      
+      // Save to SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('subscription_tier', newTier.index);
+      if (_subscriptionExpiryDate != null) {
+        await prefs.setInt('subscription_expiry', _subscriptionExpiryDate!.millisecondsSinceEpoch);
+      } else {
+        await prefs.remove('subscription_expiry');
+      }
+      
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error upgrading subscription: $e');
+      throw 'Błąd zmiany subskrypcji: $e';
+    }
+  }
+  
+  /// Cancel Subscription (downgrade to free)
+  Future<void> cancelSubscription() async {
+    await upgradeSubscription(SubscriptionTier.free);
   }
 
   /// Sign Out

@@ -48,6 +48,8 @@ dependencies:
   flutter_facebook_auth: ^7.1.5
   cloud_firestore: ^5.5.1
   firebase_storage: ^12.3.6
+  
+  # Utilities
   firebase_messaging: ^15.1.5
   firebase_crashlytics: ^4.1.5
   firebase_remote_config: ^5.1.5

@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/custom_text_field.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../providers/user_provider.dart';
+import '../../../models/subscription_plan.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -100,22 +101,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final user = context.read<UserProvider>();
+      _loadUserData();
+    });
+  }
+  
+  void _loadUserData() {
+    final user = context.read<UserProvider>();
+    
+    setState(() {
+      if (user.nickname != null && user.nickname!.isNotEmpty) {
+         _nameController.text = user.nickname!;
+      }
       
-      setState(() {
-        if (user.nickname != null && user.nickname!.isNotEmpty) {
-           _nameController.text = user.nickname!;
-        }
-        
-        // Load email from Firebase
-        if (user.firebaseUser?.email != null) {
-          _emailController.text = user.firebaseUser!.email!;
-        }
-        
-        _weightController.text = user.weight != null ? '${user.weight} kg' : '';
-        _heightController.text = user.height != null ? '${user.height} cm' : '';
-        _ageController.text = user.age != null ? '${user.age} lat' : '';
-      });
+      // Load email from Firebase
+      if (user.firebaseUser?.email != null) {
+        _emailController.text = user.firebaseUser!.email!;
+      }
+      
+      // Load measurements
+      _weightController.text = user.weight != null ? '${user.weight} kg' : '';
+      _heightController.text = user.height != null ? '${user.height} cm' : '';
+      _ageController.text = user.age != null ? '${user.age} lat' : '';
     });
   }
 
@@ -258,64 +264,125 @@ class _ProfileScreenState extends State<ProfileScreen> {
               // Avatar Section
               Consumer<UserProvider>(
                 builder: (context, user, child) {
+                  // Get subscription tier info
+                  final tier = user.subscriptionTier ?? SubscriptionTier.free;
+                  final tierName = tier == SubscriptionTier.free 
+                      ? 'Darmowy' 
+                      : tier == SubscriptionTier.basic 
+                          ? 'Basic' 
+                          : 'Premium';
+                  final tierColor = tier == SubscriptionTier.free 
+                      ? Colors.grey 
+                      : tier == SubscriptionTier.basic 
+                          ? AppColors.primary 
+                          : Colors.amber;
+                  
                   return Stack(
                     alignment: Alignment.center,
                     children: [
-                      Container(
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: _imageBytes == null && user.avatarUrl == null 
-                              ? AppColors.avatarColors[_selectedColorIndex] 
-                              : Colors.transparent,
-                          image: _imageBytes != null
-                              ? DecorationImage(
-                                  image: MemoryImage(_imageBytes!),
-                                  fit: BoxFit.cover,
-                                )
-                              : user.avatarUrl != null
-                                  ? DecorationImage(
-                                      image: NetworkImage(user.avatarUrl!),
-                                      fit: BoxFit.cover,
-                                    )
-                                  : null,
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 10,
-                              offset: Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        child: _imageBytes == null && user.avatarUrl == null
-                            ? const Icon(
-                                Icons.person,
-                                size: 50,
+                      // Subscription Badge (above avatar)
+                      Positioned(
+                        top: 0,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: tierColor,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: tierColor.withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                tier == SubscriptionTier.free 
+                                    ? Icons.card_giftcard 
+                                    : tier == SubscriptionTier.basic 
+                                        ? Icons.star 
+                                        : Icons.diamond,
                                 color: Colors.white,
-                              )
-                            : null,
-                      ),
-                  Positioned(
-                    bottom: 0, 
-                    right: 0,
-                    child: GestureDetector(
-                      onTap: _pickImage,
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
+                                size: 14,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                tierName,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        child: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
                       ),
-                    ),
-                  )
-                ],
-              );
-            },
-          ),
+                      
+                      // Avatar (moved down to make space for badge)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 45),
+                        child: Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _imageBytes == null && user.avatarUrl == null 
+                                ? AppColors.avatarColors[_selectedColorIndex] 
+                                : Colors.transparent,
+                            image: _imageBytes != null
+                                ? DecorationImage(
+                                    image: MemoryImage(_imageBytes!),
+                                    fit: BoxFit.cover,
+                                  )
+                                : user.avatarUrl != null
+                                    ? DecorationImage(
+                                        image: NetworkImage(user.avatarUrl!),
+                                        fit: BoxFit.cover,
+                                      )
+                                    : null,
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black12,
+                                blurRadius: 10,
+                                offset: Offset(0, 5),
+                              ),
+                            ],
+                          ),
+                          child: _imageBytes == null && user.avatarUrl == null
+                              ? const Icon(
+                                  Icons.person,
+                                  size: 50,
+                                  color: Colors.white,
+                                )
+                              : null,
+                        ),
+                      ),
+                      
+                      // Camera Icon (adjusted position)
+                      Positioned(
+                        bottom: 0, 
+                        right: 0,
+                        child: GestureDetector(
+                          onTap: _pickImage,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                            ),
+                            child: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
+                          ),
+                        ),
+                      )
+                    ],
+                  );
+                },
+              ),
               
               const SizedBox(height: 12),
               
@@ -495,11 +562,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               const SizedBox(height: 32),
 
-              // Logout
-              TextButton.icon(
+              // Subscription Management Button
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 2,
+                ),
+                onPressed: () => Navigator.of(context).pushNamed('/subscription'),
+                icon: const Icon(Icons.card_membership, size: 20),
+                label: const Text('Zarządzaj subskrypcją', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              
+              const SizedBox(height: 12),
+              
+              // Logout Button
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.error.withOpacity(0.1),
+                  foregroundColor: AppColors.error,
+                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
                 onPressed: _logout,
-                icon: const Icon(Icons.logout, color: AppColors.error, size: 20),
-                label: const Text('Wyloguj się', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold)),
+                icon: const Icon(Icons.logout, size: 20),
+                label: const Text('Wyloguj się', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
               
               const SizedBox(height: 20),
@@ -874,32 +964,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
           contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
         ),
         if (isInfoExpanded) ...[
-          _buildInfoItem('Polityka prywatności'),
-          _buildInfoItem('Regulamin'),
+          _buildInfoItem('Polityka prywatności', '/privacy'),
+          _buildInfoItem('Regulamin', '/terms'),
           const SizedBox(height: 8),
         ],
       ],
     );
   }
 
-  Widget _buildInfoItem(String title) { // Removed IconData icon param
+  Widget _buildInfoItem(String title, String route) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-      child: Row(
-        children: [
-          const Icon(Icons.chevron_right, size: 20, color: AppColors.primary),
-          const SizedBox(width: 12),
-          // Removed Icon(icon...)
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: colorScheme.onSurface,
+    return InkWell(
+      onTap: () => Navigator.of(context).pushNamed(route),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+        child: Row(
+          children: [
+            const Icon(Icons.chevron_right, size: 20, color: AppColors.primary),
+            const SizedBox(width: 12),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: colorScheme.onSurface,
+              ),
             ),
-          ),
-        ],
+            const Spacer(),
+            Icon(
+              Icons.arrow_forward_ios,
+              size: 14,
+              color: colorScheme.onSurface.withOpacity(0.4),
+            ),
+          ],
+        ),
       ),
     );
   }
