@@ -45,8 +45,30 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
       _selectedDayIndex = 0;
     }
 
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.white, // Cleaner white background like in mockup
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        elevation: 0,
+        title: Text(
+          'Mój Plan',
+          style: TextStyle(
+            color: colorScheme.onSurface,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add, color: Color(0xFF10B981)),
+            onPressed: _navigateToProgressTab,
+          ),
+        ],
+      ),
       body: Consumer<PlanProvider>(
         builder: (context, planProvider, _) {
           final plan = planProvider.workoutPlan;
@@ -66,7 +88,8 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
                 _buildDashboardHeader(plan),
                 
                 // Day Selector
-                Padding(
+                Container(
+                  color: theme.scaffoldBackgroundColor, // was AppColors.surface, but clearer if matches background
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: DaySelector(
                     selectedDayIndex: _selectedDayIndex,
@@ -78,7 +101,7 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
                   ),
                 ),
                 
-                const Divider(height: 1, color: AppColors.border),
+                const Divider(height: 1, indent: 16, endIndent: 16),
                 
                 // Content
                 Expanded(
@@ -153,9 +176,12 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
   }
 
   Widget _buildDashboardHeader(GeneratedPlan plan) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-      color: Colors.white,
+      color: theme.scaffoldBackgroundColor, // Changed from Colors.white
       child: Consumer<UserProvider>(
         builder: (context, userProvider, _) {
           final streak = userProvider.profile?.isLoggedIn == true 
@@ -180,9 +206,9 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
             padding: const EdgeInsets.all(12),
             margin: const EdgeInsets.only(bottom: 16),
             decoration: BoxDecoration(
-                color: Colors.white,
+                color: colorScheme.surface,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: colorScheme.outline.withOpacity(0.2)),
             ),
             child: Row(
                 children: [
@@ -192,19 +218,19 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
                     child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                        const Text(
+                         Text(
                         'Twoje Osiągnięcia',
                         style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
+                            color: colorScheme.onSurface,
                         ),
                         ),
                         Text(
                         'Dni z rzędu: ${userProvider.streakCurrent} 🔥 | Odblokowano: ${userProvider.streakCurrent}/30',
                         style: TextStyle(
                             fontSize: 12,
-                            color: AppColors.textSecondary,
+                            color: colorScheme.onSurfaceVariant,
                         ),
                         ),
                     ],
@@ -217,19 +243,19 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
             // Plan Title Section (Moved inside Column)
             Text(
               plan.title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: colorScheme.onSurface,
                 letterSpacing: -0.5,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               plan.description,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
-                color: AppColors.textSecondary,
+                color: colorScheme.onSurfaceVariant,
                 height: 1.4,
               ),
             ),
@@ -255,20 +281,20 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.bed_outlined, size: 48, color: AppColors.textTertiary),
+              Icon(Icons.bed_outlined, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Dzień Regeneracji',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
                 'Dzisiaj odpoczywamy! ',
-                style: TextStyle(color: AppColors.textTertiary),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
             ],
           ),
@@ -285,10 +311,10 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
           children: [
             Text(
               dayNames[dayIndex],
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ],
@@ -312,9 +338,9 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
                 Expanded(
                   child: Text(
                     planDay.summary!,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
-                      color: AppColors.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontStyle: FontStyle.italic,
                     ),
                   ),

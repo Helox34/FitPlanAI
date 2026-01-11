@@ -16,14 +16,16 @@ class ProcessScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isWorkout = mode == CreatorMode.WORKOUT;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: colorScheme.onSurface),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -43,10 +45,10 @@ class ProcessScreen extends StatelessWidget {
               // Title
               Text(
                 isWorkout ? 'Plan Treningowy' : 'Plan Dietetyczny',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+                  color: colorScheme.onSurface,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -57,9 +59,9 @@ class ProcessScreen extends StatelessWidget {
                 isWorkout
                     ? 'Przygotujemy dla Ciebie spersonalizowany plan treningowy dopasowany do Twoich celów i możliwości.'
                     : 'Przygotujemy dla Ciebie spersonalizowany plan żywieniowy dopasowany do Twoich potrzeb i preferencji.',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
-                  color: AppColors.textSecondary,
+                  color: colorScheme.onSurfaceVariant,
                   height: 1.5,
                 ),
                 textAlign: TextAlign.center,
@@ -72,18 +74,21 @@ class ProcessScreen extends StatelessWidget {
                   child: Column(
                     children: [
                       _buildInfoCard(
+                        context,
                         'Czas trwania',
                         isWorkout ? '10-15 minut' : '15-20 minut',
                         Icons.access_time,
                       ),
                       const SizedBox(height: 16),
                       _buildInfoCard(
+                        context,
                         'Liczba pytań',
                         isWorkout ? '27 pytań' : '30 pytań',
                         Icons.quiz,
                       ),
                       const SizedBox(height: 16),
                       _buildInfoCard(
+                        context,
                         'Generowanie planu',
                         '30-60 sekund',
                         Icons.auto_awesome,
@@ -113,13 +118,16 @@ class ProcessScreen extends StatelessWidget {
     );
   }
   
-  Widget _buildInfoCard(String title, String value, IconData icon) {
+  Widget _buildInfoCard(BuildContext context, String title, String value, IconData icon) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: colorScheme.outline.withOpacity(0.1)),
       ),
       child: Row(
         children: [
@@ -139,18 +147,18 @@ class ProcessScreen extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
-                    color: AppColors.textSecondary,
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   value,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    color: colorScheme.onSurface,
                   ),
                 ),
               ],

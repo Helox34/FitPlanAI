@@ -14,13 +14,24 @@ class AppColors {
   
   // Background Colors
   static const Color background = Color(0xFFF3F4F6); // Light gray
+  static const Color backgroundDark = Color(0xFF111827); // Dark gray/black
+  
   static const Color surface = Color(0xFFFFFFFF); // White
+  static const Color surfaceDark = Color(0xFF1F2937); // Darker gray
+  
   static const Color surfaceVariant = Color(0xFFF9FAFB);
+  static const Color surfaceVariantDark = Color(0xFF374151); // Even darker gray
   
   // Text Colors
   static const Color textPrimary = Color(0xFF1E293B); // Dark navy
+  static const Color textPrimaryDark = Color(0xFFF9FAFB); // White-ish
+
   static const Color textSecondary = Color(0xFF64748B); // Gray
+  static const Color textSecondaryDark = Color(0xFF9CA3AF); // Light gray
+
   static const Color textTertiary = Color(0xFF94A3B8); // Light gray
+  static const Color textTertiaryDark = Color(0xFF6B7280); // Darker gray
+
   static const Color textOnPrimary = Color(0xFFFFFFFF); // White
   
   // Accent Colors

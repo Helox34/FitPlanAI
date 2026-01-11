@@ -151,19 +151,23 @@ class _AIChatScreenState extends State<AIChatScreen> {
   
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: colorScheme.onSurface),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           widget.mode == CreatorMode.WORKOUT ? 'Wywiad treningowy' : 'Wywiad dietetyczny',
-          style: const TextStyle(
-            color: AppColors.textPrimary,
+          style: TextStyle(
+            color: colorScheme.onSurface,
             fontSize: 18,
             fontWeight: FontWeight.w600,
           ),
@@ -238,9 +242,9 @@ class _AIChatScreenState extends State<AIChatScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: colorScheme.surface,
                   border: Border(
-                    top: BorderSide(color: AppColors.border),
+                    top: BorderSide(color: colorScheme.outline.withOpacity(0.1)),
                   ),
                 ),
                 child: SafeArea(
@@ -250,11 +254,12 @@ class _AIChatScreenState extends State<AIChatScreen> {
                       Expanded(
                         child: TextField(
                           controller: _messageController,
+                          style: TextStyle(color: colorScheme.onSurface),
                           decoration: InputDecoration(
                             hintText: 'Wpisz swoją odpowiedź...',
-                            hintStyle: TextStyle(color: AppColors.textTertiary),
+                            hintStyle: TextStyle(color: colorScheme.onSurfaceVariant),
                             filled: true,
-                            fillColor: AppColors.background,
+                            fillColor: theme.scaffoldBackgroundColor,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(24),
                               borderSide: BorderSide.none,
@@ -278,7 +283,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
                             icon: Icon(
                               Icons.send,
                               color: chatProvider.isLoading
-                                  ? AppColors.textTertiary
+                                  ? colorScheme.onSurfaceVariant
                                   : AppColors.primary,
                             ),
                           );
@@ -303,6 +308,8 @@ class _AIChatScreenState extends State<AIChatScreen> {
   
   Widget _buildMessage(ChatMessage message) {
     final isUser = message.role == 'user';
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -313,14 +320,14 @@ class _AIChatScreenState extends State<AIChatScreen> {
           maxWidth: MediaQuery.of(context).size.width * 0.75,
         ),
         decoration: BoxDecoration(
-          color: isUser ? AppColors.primary : AppColors.surface,
+          color: isUser ? AppColors.primary : colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
-          border: isUser ? null : Border.all(color: AppColors.border),
+          border: isUser ? null : Border.all(color: colorScheme.outline.withOpacity(0.1)),
         ),
         child: Text(
           message.text,
           style: TextStyle(
-            color: isUser ? Colors.white : AppColors.textPrimary,
+            color: isUser ? Colors.white : colorScheme.onSurface,
             fontSize: 15,
             height: 1.4,
           ),

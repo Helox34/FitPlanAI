@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/models/models.dart';
@@ -6,20 +7,35 @@ import '../core/models/models.dart';
 class UserProvider with ChangeNotifier {
   UserProfile? _profile;
   String _currentLanguage = 'pl'; // Default Polish
+  String _currentThemeMode = 'light'; // Default Light
   int? _age;
   double? _weight;
   double? _height;
   String? _nickname;
   String? _avatarUrl;
   bool _surveyCompleted = false;
+
+  // Notification Settings
+  bool _notifyApp = true;
+  bool _notifyPlan = false;
+  bool _notifyDiet = true;
+  bool _notifyWater = true;
   
   UserProfile? get profile => _profile;
   String get currentLanguage => _currentLanguage;
+  bool get isDarkMode => _currentThemeMode == 'dark';
+  ThemeMode get themeMode => _currentThemeMode == 'dark' ? ThemeMode.dark : ThemeMode.light;
   int? get age => _age;
   double? get weight => _weight;
   double? get height => _height;
   String? get nickname => _nickname;
   String? get avatarUrl => _avatarUrl;
+
+  // Notification Getters
+  bool get notifyApp => _notifyApp;
+  bool get notifyPlan => _notifyPlan;
+  bool get notifyDiet => _notifyDiet;
+  bool get notifyWater => _notifyWater;
   
   // Stretch fields (loaded directly from prefs)
   int _streakCurrent = 0;
@@ -40,8 +56,16 @@ class UserProvider with ChangeNotifier {
       _height = prefs.getDouble('user_height');
       _nickname = prefs.getString('user_nickname');
       _avatarUrl = prefs.getString('user_avatar_url');
+      _avatarUrl = prefs.getString('user_avatar_url');
       _currentLanguage = prefs.getString('user_language') ?? 'pl';
+      _currentThemeMode = prefs.getString('user_theme') ?? 'light';
       _surveyCompleted = prefs.getBool('survey_completed') ?? false;
+
+      // Load Notifications
+      _notifyApp = prefs.getBool('notify_app') ?? true;
+      _notifyPlan = prefs.getBool('notify_plan') ?? false;
+      _notifyDiet = prefs.getBool('notify_diet') ?? true;
+      _notifyWater = prefs.getBool('notify_water') ?? true;
       
       _streakCurrent = prefs.getInt('streak_current') ?? 0;
       _streakBest = prefs.getInt('streak_best') ?? 0;
@@ -120,12 +144,61 @@ class UserProvider with ChangeNotifier {
     notifyListeners();
   }
   
+  /// Update age
+  Future<void> updateAge(int age) async {
+    _age = age;
+    
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('user_age', age);
+    
+    notifyListeners();
+  }
+
   /// Change language
   Future<void> changeLanguage(String languageCode) async {
     _currentLanguage = languageCode;
     
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('user_language', languageCode);
+    
+    notifyListeners();
+  }
+
+  /// Toggle Theme
+  Future<void> toggleTheme(bool isDark) async {
+    _currentThemeMode = isDark ? 'dark' : 'light';
+    
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_theme', _currentThemeMode);
+    
+    notifyListeners();
+  }
+
+  /// Update Notification Settings
+  Future<void> updateNotification({
+    bool? app,
+    bool? plan,
+    bool? diet,
+    bool? water,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    if (app != null) {
+      _notifyApp = app;
+      await prefs.setBool('notify_app', app);
+    }
+    if (plan != null) {
+      _notifyPlan = plan;
+      await prefs.setBool('notify_plan', plan);
+    }
+    if (diet != null) {
+      _notifyDiet = diet;
+      await prefs.setBool('notify_diet', diet);
+    }
+    if (water != null) {
+      _notifyWater = water;
+      await prefs.setBool('notify_water', water);
+    }
     
     notifyListeners();
   }

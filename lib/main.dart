@@ -43,15 +43,21 @@ class FitPlanAIApp extends StatelessWidget {
                previous ?? LiveWorkoutProvider(planProvider),
         ),
       ],
-      child: MaterialApp(
-        title: 'FitPlan AI',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        home: const AppInitializer(),
-        routes: {
-          '/login': (context) => const LoginScreen(),
-          '/survey': (context) => const InitialSurveyScreen(),
-          '/home': (context) => MainShell(),
+      child: Consumer<UserProvider>(
+        builder: (context, userProvider, child) {
+          return MaterialApp(
+            title: 'FitPlan AI',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: userProvider.themeMode,
+            home: const AppInitializer(),
+            routes: {
+              '/login': (context) => const LoginScreen(),
+              '/survey': (context) => const InitialSurveyScreen(),
+              '/home': (context) => MainShell(),
+            },
+          );
         },
       ),
     );

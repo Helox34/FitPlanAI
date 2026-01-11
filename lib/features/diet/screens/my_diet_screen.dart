@@ -38,15 +38,19 @@ class _MyDietScreenState extends State<MyDietScreen> {
   
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
-        title: const Text(
+        title: Text(
           'Moja Dieta',
           style: TextStyle(
-            color: AppColors.textPrimary,
+            color: colorScheme.onSurface,
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
@@ -74,24 +78,24 @@ class _MyDietScreenState extends State<MyDietScreen> {
               // Plan header
               Container(
                 padding: const EdgeInsets.all(20),
-                color: AppColors.surface,
+                color: theme.scaffoldBackgroundColor, // Seamless header
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       plan.title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                        color: colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       plan.description,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
-                        color: AppColors.textSecondary,
+                        color: colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -114,7 +118,7 @@ class _MyDietScreenState extends State<MyDietScreen> {
                   
                   return Container(
                     padding: const EdgeInsets.symmetric(vertical: 10),
-                    color: AppColors.surface,
+                    color: theme.scaffoldBackgroundColor,
                     child: DaySelector(
                       selectedDayIndex: _selectedDayIndex,
                       onDaySelected: (index) {
@@ -128,7 +132,7 @@ class _MyDietScreenState extends State<MyDietScreen> {
                 }
               ),
               
-              const Divider(height: 1, color: AppColors.border),
+              const Divider(height: 1, indent: 16, endIndent: 16),
               
               // Day content
               Expanded(
@@ -142,6 +146,7 @@ class _MyDietScreenState extends State<MyDietScreen> {
   }
   
   Widget _buildDayContent(GeneratedPlan plan, int dayIndex) {
+    final colorScheme = Theme.of(context).colorScheme;
     // Generate day names dynamically if more than 7
     final List<String> dayNames;
     if (plan.schedule.length <= 7) {
@@ -174,9 +179,9 @@ class _MyDietScreenState extends State<MyDietScreen> {
             ),
             child: Text(
               planDay.summary!,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
-                color: AppColors.textPrimary,
+                color: colorScheme.onSurface,
                 height: 1.4,
               ),
             ),
@@ -194,13 +199,16 @@ class _MyDietScreenState extends State<MyDietScreen> {
   }
   
   Widget _buildMealCard(PlanItem item, int number) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: colorScheme.outline.withOpacity(0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -229,10 +237,10 @@ class _MyDietScreenState extends State<MyDietScreen> {
               Expanded(
                 child: Text(
                   item.name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    color: colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -241,9 +249,9 @@ class _MyDietScreenState extends State<MyDietScreen> {
           const SizedBox(height: 12),
           Text(
             item.details,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: AppColors.textSecondary,
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
           if (item.note != null) ...[
@@ -251,7 +259,7 @@ class _MyDietScreenState extends State<MyDietScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.background,
+                color: theme.scaffoldBackgroundColor,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -265,9 +273,9 @@ class _MyDietScreenState extends State<MyDietScreen> {
                   Expanded(
                     child: Text(
                       item.note!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: AppColors.textSecondary,
+                        color: colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -294,9 +302,9 @@ class _MyDietScreenState extends State<MyDietScreen> {
                   Expanded(
                     child: Text(
                       item.tips!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: AppColors.textPrimary,
+                        color: colorScheme.onSurface,
                         fontStyle: FontStyle.italic,
                       ),
                     ),

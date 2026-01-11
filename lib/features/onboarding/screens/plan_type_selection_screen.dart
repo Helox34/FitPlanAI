@@ -51,8 +51,11 @@ class _PlanTypeSelectionScreenState extends State<PlanTypeSelectionScreen> {
       );
     }
     
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
@@ -66,21 +69,21 @@ class _PlanTypeSelectionScreenState extends State<PlanTypeSelectionScreen> {
                 color: AppColors.primary,
               ),
               const SizedBox(height: 24),
-              const Text(
+              Text(
                 'FitPlan AI: Proces Tworzenia',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+                  color: colorScheme.onSurface,
                 ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Przejdziemy przez szczegółowy proces analityczny, aby Twój plan był w 100% dopasowany do Twoich potrzeb medycznych i treningowych.',
                 style: TextStyle(
                   fontSize: 16,
-                  color: AppColors.textSecondary,
+                  color: colorScheme.onSurfaceVariant,
                   height: 1.5,
                 ),
                 textAlign: TextAlign.center,
@@ -132,6 +135,9 @@ class _PlanTypeSelectionScreenState extends State<PlanTypeSelectionScreen> {
   }
   
   Widget _buildProcessStep(int number, String description) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -157,9 +163,9 @@ class _PlanTypeSelectionScreenState extends State<PlanTypeSelectionScreen> {
         Expanded(
           child: Text(
             description,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: AppColors.textSecondary,
+              color: colorScheme.onSurfaceVariant,
               height: 1.4,
             ),
           ),

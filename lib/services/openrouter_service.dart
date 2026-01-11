@@ -375,50 +375,100 @@ $conversationText
   }
   
   String _getPlanGenerationPrompt(Map<String, dynamic> structuredData, CreatorMode mode) {
-    return '''
-Jesteś ekspertem. Na podstawie zweryfikowanych danych użytkownika (JSON poniżej), stwórz kompletny plan ${mode == CreatorMode.WORKOUT ? 'treningowy' : 'dietetyczny'}.
+    if (mode == CreatorMode.DIET) {
+      return '''
+Jesteś ekspertem dietetyki. Na podstawie zweryfikowanych danych użytkownika (JSON poniżej), stwórz kompletny plan dietetyczny.
 
 Dane użytkownika (q1-q27):
 ${jsonEncode(structuredData)}
 
 Wytyczne:
 1. Plan musi ściśle uwzględniać odpowiedzi (np. unikać alergenów z q18, uwzględniać kontuzje z q14).
-2. Wygeneruj plan na ${mode == CreatorMode.DIET ? '14 DNI (To krytyczne: tablica schedule MUSI mieć 14 elementów)' : 'cały tydzień (7 dni)'}.
+2. Wygeneruj plan na 14 DNI (To krytyczne: tablica schedule MUSI mieć 14 elementów).
 3. W polu 'progress' wygeneruj logiczną prognozę na 4 tygodnie.
-4. W polu 'tips' dla każdego ćwiczenia dodaj bardzo zwięzłą poradę techniczną (np. "Trzymaj proste plecy", "Nie blokuj łokci").
-5. WAŻNE: W planach treningowych (WORKOUT) uwzględnij długie przerwy między seriami wynoszące 3-5 minut (zapisz to w polu 'note' np. "Przerwa 3-5 min").
+4. Tips/Notes: Pisz bardzo krótko (max 3 słowa), aby ograniczyć rozmiar odpowiedzi.
+5. Struktura każdego dnia powinna być kompletna (śniadanie, II śniadanie, obiad, kolacja - lub wg preferencji).
 
 Zwróć JSON w formacie:
 {
   "title": string,
   "description": string,
-  "mode": "${mode.toString().split('.').last}",
+  "mode": "diet",
   "schedule": [
     {
-      "dayName": string,
+      "dayName": string, // "Dzień 1", "Dzień 2"...
       "summary": string,
       "items": [
         {
-          "name": string,
-          "details": string,
-          "note": string,
-          "tips": string
+          "name": string, // Nazwa posiłku
+          "details": string, // Składniki i gramatura
+          "note": string, // Kaloryczność/Makro
+          "tips": string // Krótka porada
         }
       ]
     }
   ],
   "progress": {
-    "metricName": string,
-    "unit": string,
-    "dataPoints": [
-      {
-        "week": number,
-        "value": number,
-        "type": "projected"
-      }
-    ]
+    "metricName": "Waga",
+    "unit": "kg",
+    "dataPoints": [{ "week": number, "value": number, "type": "projected" }]
   }
 }
+''';
+    }
+
+    // WORKOUT PLAN LOGIC (Based on Optymalizacja-Kryteriów-Planów-Treningowych.pdf)
+    return '''
+Jesteś ekspertem trenerem przygotowania motorycznego (NSCA/ACSM). 
+Stwórz profesjonalny plan treningowy na podstawie danych użytkownika:
+${jsonEncode(structuredData)}
+
+ZASADY GENEROWANIA (BIO-WIERNOŚĆ OBLICZENIOWA):
+
+1. SEGMENTACJA UŻYTKOWNIKA (ustal automatycznie na podstawie stażu):
+   - POZIOM 1 (Początkujący <6 mies): FBW 2-3x/tydz. Objętość niska (1-3 serie). Tempo wolne (3010). Cel: Nauka ruchu.
+   - POZIOM 2 (Średniozaawansowany 6m-2l): Split (Góra/Dół lub Push/Pull) 3-4x/tydz. Intensywność 60-80% 1RM. Periodyzacja falowa.
+   - POZIOM 3 (Zaawansowany >2l): Wysoka częstotliwość 4-6x. Metody: Superserie, Polaryzacja.
+
+2. ANATOMIA TRENINGU (Obowiązkowa struktura każdego dnia):
+   - Moduł 1: ROZGRZEWKA (RAMP). Dodaj jako pierwsze 1-2 pozycje w 'items'. Np. "Mobilizacja Bioder".
+   - Moduł 2: BLOK GŁÓWNY. Priorytet Złożoności (Przysiady/Martwe ciągi na początku).
+   - Moduł 3: WYCISZENIE (Stretch). Dodaj jako ostatnią pozycję.
+
+3. PARAMETRYZACJA (Zapisz w polu 'details' i 'note'):
+   - 'details': Format "Serie x Powtórzenia @ Obciążenie". 
+     Dla siły używaj RPE (np. "@ RPE 8"). 
+     Dla początkujących używaj tempa (np. "Tempo 3010").
+   - 'note': Czas przerwy (Kluczowe!). 
+     Siła: 3-5 min. Hipertrofia: 60-90s. Wytrzymałość: <60s.
+
+4. BEZPIECZEŃSTWO (Hard Rules):
+   - Jeśli 'hypertension' (nadciśnienie): Brak ćwiczeń z głową w dół, brak izometrii >60s.
+   - Jeśli 'lower_back_pain' (ból pleców): Zamień Przysiady na Split Squat/Leg Press. Zamień Martwy Ciąg na Hip Thrust/Row.
+
+FORMAT JSON:
+{
+  "title": string, // Np. "Hipertrofia Funkcjonalna - Faza 1"
+  "description": string, // Krótki opis strategii
+  "mode": "workout",
+  "schedule": [
+    {
+      "dayName": string, // "Poniedziałek", "Wtorek"...
+      "summary": string, // Cel dnia
+      "items": [
+        {
+          "name": string, // Nazwa ćwiczenia
+          "details": string, // Np. "3 serie x 8-10 powt @ RPE 8"
+          "note": string, // Np. "Przerwa: 90s | Tempo: 3010"
+          "tips": string // Technika, np. "Trzymaj proste plecy"
+        }
+      ]
+    }
+  ],
+  "progress": { ... } // Prognoza siły lub wagi
+}
+
+Wygeneruj plan na 7 dni (cały tydzień). Puste dni oznacz pustą listą items lub dniem "Rest Day".
 ''';
   }
 }
