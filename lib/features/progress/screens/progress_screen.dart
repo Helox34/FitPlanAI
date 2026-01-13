@@ -8,6 +8,7 @@ import '../../../providers/plan_provider.dart';
 import '../../../providers/progress_provider.dart';
 import '../../../providers/user_provider.dart';
 import '../../onboarding/screens/plan_type_selection_screen.dart';
+import '../../../core/widgets/worm_loader.dart';
 
 class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key});
@@ -20,30 +21,17 @@ class _ProgressScreenState extends State<ProgressScreen> {
   @override
   void initState() {
     super.initState();
-    // Still load initially, but the main check will be in didChangeDependencies
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ProgressProvider>().loadProgress();
+      final userProvider = context.read<UserProvider>();
+      final progressProvider = context.read<ProgressProvider>();
+      
+      // Load progress with fallback, then check for reminders
+      progressProvider.loadProgress(fallbackWeight: userProvider.weight).then((_) {
+        if (mounted) {
+           _checkPrompts();
+        }
+      });
     });
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final userProvider = context.read<UserProvider>();
-    final progressProvider = context.read<ProgressProvider>();
-
-    // If User has weight but History is initialized and empty, try backfill
-    if (userProvider.weight != null && 
-        progressProvider.weightEntries.isEmpty && 
-        !progressProvider.isLoading) { // Ensure isLoading getter exists or add it
-        
-        // We use addPostFrameCallback to avoid build-phase side-effects
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-           progressProvider.loadProgress(fallbackWeight: userProvider.weight).then((_) {
-             _checkPrompts();
-           });
-        });
-    }
   }
 
   void _checkPrompts() {
@@ -54,6 +42,40 @@ class _ProgressScreenState extends State<ProgressScreen> {
   }
 
   void _navigateToCreatePlan(BuildContext context, CreatorMode mode) {
+    // Check if email is verified
+    if (!context.read<UserProvider>().isEmailVerified) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Weryfikacja wymagana'),
+          content: const Text('Musisz zweryfikować adres email, aby wygenerować plan dietetyczny lub treningowy.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                try {
+                   await context.read<UserProvider>().sendVerificationEmail();
+                   if (context.mounted) {
+                     ScaffoldMessenger.of(context).showSnackBar(
+                       const SnackBar(content: Text('Wysłano link weryfikacyjny.')),
+                     );
+                   }
+                } catch (e) {
+                   // ignore
+                }
+              },
+              child: const Text('Wyślij ponownie'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => PlanTypeSelectionScreen(preselectedMode: mode),
@@ -137,13 +159,14 @@ class _ProgressScreenState extends State<ProgressScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text('Postępy'),
         scrolledUnderElevation: 0,
       ),
       body: Consumer2<PlanProvider, ProgressProvider>(
         builder: (context, planProvider, progressProvider, _) {
           if (progressProvider.isLoading && progressProvider.weightEntries.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
+            return Center(child: WormLoader(size: 40));
           }
 
           return SingleChildScrollView(

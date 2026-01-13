@@ -13,6 +13,8 @@ import '../../../providers/live_workout_provider.dart';
 import '../../../providers/user_provider.dart';
 import 'live_workout_screen.dart';
 
+import '../../../core/widgets/worm_loader.dart';
+
 /// Screen displaying the user's workout plan
 class MyPlanScreen extends StatefulWidget {
   const MyPlanScreen({super.key});
@@ -23,6 +25,8 @@ class MyPlanScreen extends StatefulWidget {
 
 class _MyPlanScreenState extends State<MyPlanScreen> {
   int _selectedDayIndex = DateTime.now().weekday - 1; // 0 = Monday
+  // Initialize to the Monday of the current week
+  DateTime _currentWeekStart = DateTime.now().subtract(Duration(days: DateTime.now().weekday - 1));
   
   @override
   void initState() {
@@ -48,11 +52,11 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
 
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         title: Text(
@@ -72,6 +76,19 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
       ),
       body: Consumer<PlanProvider>(
         builder: (context, planProvider, _) {
+          if (planProvider.isGenerating) {
+             return const Center(
+               child: Column(
+                 mainAxisAlignment: MainAxisAlignment.center,
+                 children: [
+                   WormLoader(),
+                   SizedBox(height: 24),
+                   Text('Tworzenie planu...', style: TextStyle(color: Colors.white70)),
+                 ],
+               ),
+             );
+          }
+
           final plan = planProvider.workoutPlan;
           
           if (plan == null) {
@@ -88,15 +105,27 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
                 // Custom Header with Achievements and Title
                 _buildDashboardHeader(plan),
                 
-                // Day Selector
+                // Day Selector (Calendar Strip)
                 Container(
-                  color: theme.scaffoldBackgroundColor, // was AppColors.surface, but clearer if matches background
+                  color: theme.scaffoldBackgroundColor,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: DaySelector(
+                    currentWeekStart: _currentWeekStart,
                     selectedDayIndex: _selectedDayIndex,
                     onDaySelected: (index) {
                       setState(() {
                         _selectedDayIndex = index;
+                      });
+                    },
+                    onPreviousWeek: () {
+                      setState(() {
+                        _currentWeekStart = _currentWeekStart.subtract(const Duration(days: 7));
+                        // Keep selected index valid or reset? Keeping index is standard ux.
+                      });
+                    },
+                    onNextWeek: () {
+                      setState(() {
+                        _currentWeekStart = _currentWeekStart.add(const Duration(days: 7));
                       });
                     },
                   ),
@@ -113,11 +142,13 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
                       Builder(
                         builder: (context) {
                           // Check if selected day is today
-                          // DateTime.weekday returns 1 for Monday, ..., 7 for Sunday
-                          // _selectedDayIndex is 0 for Monday, ..., 6 for Sunday
                           final now = DateTime.now();
-                          final currentDayIndex = now.weekday - 1;
-                          final isToday = _selectedDayIndex == currentDayIndex;
+                          // Calculate the actual selected date
+                          final selectedDate = _currentWeekStart.add(Duration(days: _selectedDayIndex));
+                          
+                          final isToday = selectedDate.year == now.year && 
+                                          selectedDate.month == now.month && 
+                                          selectedDate.day == now.day;
                           
                           return Container(
                             width: double.infinity,

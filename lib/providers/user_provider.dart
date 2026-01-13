@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../core/models/models.dart';
 import '../models/subscription_plan.dart';
 import '../services/notification_service.dart';
@@ -58,6 +59,13 @@ class UserProvider with ChangeNotifier {
   int get streakBest => _streakBest;
   
   bool get hasCompletedInitialSurvey => _surveyCompleted;
+
+  // Firebase Auth
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  User? _firebaseUser;
+  
+  User? get firebaseUser => _firebaseUser;
+  bool get isLoggedIn => _firebaseUser != null;
   
   /// Load user data from storage
   Future<void> loadUserData() async {
@@ -71,11 +79,9 @@ class UserProvider with ChangeNotifier {
       _height = prefs.getDouble('user_height');
       _nickname = prefs.getString('user_nickname');
       _avatarUrl = prefs.getString('user_avatar_url');
-      _avatarUrl = prefs.getString('user_avatar_url');
       _currentLanguage = prefs.getString('user_language') ?? 'pl';
       _currentThemeMode = prefs.getString('user_theme') ?? 'light';
-      _surveyCompleted = prefs.getBool('survey_completed') ?? false;
-
+      
       // Load Notifications
       _notifyApp = prefs.getBool('notify_app') ?? true;
       _notifyPlan = prefs.getBool('notify_plan') ?? false;
@@ -93,9 +99,140 @@ class UserProvider with ChangeNotifier {
         _subscriptionExpiryDate = DateTime.fromMillisecondsSinceEpoch(expiryMillis);
       }
       
+      // Load survey completed (fallback to checking fields)
+      if (prefs.containsKey('survey_completed')) {
+        _surveyCompleted = prefs.getBool('survey_completed') ?? false;
+      } else {
+        _surveyCompleted = (_age != null && _weight != null && _height != null);
+      }
+      
       notifyListeners();
     } catch (e) {
       debugPrint('Error loading user data: $e');
+    }
+  }
+  
+  /// Listen to Auth State Changes
+  void initAuthListener() {
+    _auth.authStateChanges().listen((User? user) async {
+      _firebaseUser = user;
+      
+      // If user just logged in, restore their profile data from Firebase
+      if (user != null) {
+        debugPrint('🔵 Auth state changed: User logged in - ${user.email}');
+        
+        final prefs = await SharedPreferences.getInstance();
+        
+        // Restore nickname from Firebase displayName
+        if (user.displayName != null && user.displayName!.isNotEmpty) {
+           _nickname = user.displayName;
+           await prefs.setString('user_nickname', user.displayName!);
+        }
+        
+        // Restore avatar from Firebase photoURL
+        if (user.photoURL != null && user.photoURL!.isNotEmpty) {
+            _avatarUrl = user.photoURL;
+            await prefs.setString('user_avatar_url', user.photoURL!);
+        }
+
+        // SYNC FROM FIRESTORE
+        await syncUserProfile(user);
+
+      } else {
+        debugPrint('🔵 Auth state changed: User logged out');
+      }
+      
+      notifyListeners();
+    });
+  }
+
+  /// Sync user profile from Firestore (public to be callable from LoginScreen)
+  Future<void> syncUserProfile(User user) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userDocRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final doc = await userDocRef.get();
+      
+      if (doc.exists) {
+        final data = doc.data();
+        if (data != null) {
+          if (data['age'] != null) {
+             final a = data['age'];
+             _age = a is int ? a : (a as num).toInt();
+            await prefs.setInt('user_age', _age!);
+          }
+          
+          if (data['weight'] != null) {
+            _weight = (data['weight'] as num).toDouble();
+            await prefs.setDouble('user_weight', _weight!);
+          } else {
+            // RECOVERY: Try to fetch latest weight from history if profile weight is missing
+            try {
+              final historyUtil = await userDocRef
+                  .collection('weight_history')
+                  .orderBy('date', descending: true)
+                  .limit(1)
+                  .get();
+                  
+              if (historyUtil.docs.isNotEmpty) {
+                final latest = historyUtil.docs.first.data();
+                if (latest['value'] != null) {
+                   _weight = (latest['value'] as num).toDouble();
+                   await prefs.setDouble('user_weight', _weight!);
+                   debugPrint('🟢 Recovered weight from history: $_weight');
+                   // Save back to profile
+                   await _updateFirestore({'weight': _weight});
+                }
+              }
+            } catch (e) {
+              debugPrint('⚠️ Failed to recover weight from history: $e');
+            }
+          }
+
+          if (data['height'] != null) {
+            _height = (data['height'] as num).toDouble();
+            await prefs.setDouble('user_height', _height!);
+          }
+           if (data['nickname'] != null) {
+            _nickname = data['nickname'];
+            await prefs.setString('user_nickname', _nickname!);
+          }
+          
+          // If we have these 3, survey is completed
+          if (_age != null && _weight != null && _height != null) {
+            _surveyCompleted = true;
+            await prefs.setBool('survey_completed', true);
+          } else {
+            // Also check 'surveyCompleted' flag
+            if (data['surveyCompleted'] == true) {
+              _surveyCompleted = true;
+              await prefs.setBool('survey_completed', true);
+            }
+          }
+        }
+      } else {
+        // Doc doesn't exist -> Survey definitely not completed
+        // But double check shared prefs, maybe we are just syncing mid-session?
+        // Actually this is sync from source of truth.
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error syncing profile from Firestore: $e');
+    }
+  }
+
+  /// Helper to update Firestore user document
+  Future<void> _updateFirestore(Map<String, dynamic> data) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .set(data, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error updating Firestore: $e');
     }
   }
   
@@ -116,8 +253,18 @@ class UserProvider with ChangeNotifier {
     await prefs.setDouble('user_height', height);
     await prefs.setBool('survey_completed', true);
 
+    // Sync with Firestore
+    await _updateFirestore({
+      'age': age,
+      'weight': weight,
+      'height': height,
+      'surveyCompleted': true,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
     notifyListeners();
   }
+
   /// Mark initial survey as completed
   Future<void> markSurveyCompleted() async {
     _surveyCompleted = true;
@@ -125,6 +272,9 @@ class UserProvider with ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('survey_completed', true);
     
+    // Sync with Firestore
+    await _updateFirestore({'surveyCompleted': true});
+
     notifyListeners();
   }
   
@@ -135,8 +285,11 @@ class UserProvider with ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('user_nickname', nickname);
 
-    // Sync with Firebase
+    // Sync with Firebase Auth
     await _auth.currentUser?.updateDisplayName(nickname);
+    
+    // Sync with Firestore
+    await _updateFirestore({'nickname': nickname});
     
     notifyListeners();
   }
@@ -151,6 +304,9 @@ class UserProvider with ChangeNotifier {
     // Sync with Firebase
     await _auth.currentUser?.updatePhotoURL(url);
     
+    // Optionally update firestore too
+    await _updateFirestore({'avatarUrl': url});
+    
     notifyListeners();
   }
   
@@ -161,6 +317,9 @@ class UserProvider with ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble('user_weight', weight);
     
+    // Sync with Firestore
+    await _updateFirestore({'weight': weight});
+
     notifyListeners();
   }
   
@@ -171,6 +330,9 @@ class UserProvider with ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble('user_height', height);
     
+    // Sync with Firestore
+    await _updateFirestore({'height': height});
+
     notifyListeners();
   }
   
@@ -181,6 +343,9 @@ class UserProvider with ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('user_age', age);
     
+    // Sync with Firestore
+    await _updateFirestore({'age': age});
+
     notifyListeners();
   }
 
@@ -252,6 +417,7 @@ class UserProvider with ChangeNotifier {
     _nickname = null;
     _avatarUrl = null;
     _currentLanguage = 'pl';
+    _surveyCompleted = false;
     
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
@@ -272,14 +438,10 @@ class UserProvider with ChangeNotifier {
           lastDate.month == now.month && 
           lastDate.day == now.day) {
         // Already done today, do not increment streak
-        // We can still update the timestamp if we want to track exact last time
-        // but for streak protection, we just return.
         return;
       }
     }
     
-    // Simple logic: just increment current streak
-    // In a real app, check dates (1 day diff)
     int current = prefs.getInt('streak_current') ?? 0;
     int best = prefs.getInt('streak_best') ?? 0;
     
@@ -294,57 +456,18 @@ class UserProvider with ChangeNotifier {
     // Also save last workout date
     await prefs.setString('last_workout_date', now.toIso8601String());
     
+    // Sync with Firestore (Streak)
+    await _updateFirestore({
+      'streak': current,
+      'bestStreak': best,
+      'lastWorkoutDate': now.toIso8601String(),
+    });
+
     // Update local state
     _streakCurrent = current;
     _streakBest = best;
     
     notifyListeners();
-  }
-
-  // ===========================================================================
-  // FIREBASE AUTHENTICATION
-  // ===========================================================================
-
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  User? _firebaseUser;
-  
-  User? get firebaseUser => _firebaseUser;
-  bool get isLoggedIn => _firebaseUser != null;
-
-  /// Listen to Auth State Changes
-  void initAuthListener() {
-    _auth.authStateChanges().listen((User? user) async {
-      _firebaseUser = user;
-      
-      // If user just logged in, restore their profile data from Firebase
-      if (user != null) {
-        debugPrint('🔵 Auth state changed: User logged in - ${user.email}');
-        
-        final prefs = await SharedPreferences.getInstance();
-        
-        // Restore nickname from Firebase displayName
-        if (user.displayName != null && user.displayName!.isNotEmpty) {
-          if (_nickname != user.displayName) {
-            debugPrint('🔵 Restoring nickname from Firebase: ${user.displayName}');
-            _nickname = user.displayName;
-            await prefs.setString('nickname', user.displayName!);
-          }
-        }
-        
-        // Restore avatar from Firebase photoURL
-        if (user.photoURL != null && user.photoURL!.isNotEmpty) {
-          if (_avatarUrl != user.photoURL) {
-            debugPrint('🔵 Restoring avatar from Firebase: ${user.photoURL}');
-            _avatarUrl = user.photoURL;
-            await prefs.setString('avatarUrl', user.photoURL!);
-          }
-        }
-      } else {
-        debugPrint('🔵 Auth state changed: User logged out');
-      }
-      
-      notifyListeners();
-    });
   }
 
   /// Sign In with Email & Password
@@ -361,7 +484,11 @@ class UserProvider with ChangeNotifier {
   /// Sign Up with Email & Password
   Future<void> signUp(String email, String password) async {
     try {
-      await _auth.createUserWithEmailAndPassword(email: email, password: password);
+      final userCredential = await _auth.createUserWithEmailAndPassword(email: email, password: password);
+      // Send verification email
+      if (userCredential.user != null && !userCredential.user!.emailVerified) {
+        await userCredential.user!.sendEmailVerification();
+      }
     } on FirebaseAuthException catch (e) {
       throw _handleAuthError(e);
     } catch (e) {
@@ -376,7 +503,7 @@ class UserProvider with ChangeNotifier {
       // For web, we need to specify the clientId and use minimal scopes
       final GoogleSignIn googleSignIn = GoogleSignIn(
         clientId: kIsWeb ? '733835310780-skijm4f6hmjcctrrb4s2hfnq052lvo2m.apps.googleusercontent.com' : null,
-        scopes: ['email'], // Only request email scope to avoid People API requirement
+        scopes: ['email'],
       );
       
       debugPrint('🔵 UserProvider: Calling googleSignIn.signIn()');
@@ -433,7 +560,9 @@ class UserProvider with ChangeNotifier {
   /// Sign In with Facebook
   Future<void> signInWithFacebook() async {
     try {
-      final LoginResult result = await FacebookAuth.instance.login();
+      final LoginResult result = await FacebookAuth.instance.login(
+        permissions: ['public_profile'],
+      );
       
       if (result.status != LoginStatus.success) {
         throw 'Anulowano logowanie przez Facebook.';
@@ -447,6 +576,77 @@ class UserProvider with ChangeNotifier {
       throw 'Błąd logowania przez Facebook: $e';
     }
   }
+
+  /// SECURITY METHODS
+
+  /// Send Password Reset Email
+  Future<void> sendPasswordResetEmail() async {
+    if (_firebaseUser?.email == null) return;
+    try {
+      await _auth.sendPasswordResetEmail(email: _firebaseUser!.email!);
+    } on FirebaseAuthException catch (e) {
+      throw _handleAuthError(e);
+    }
+  }
+
+  /// Update Email
+  Future<void> updateEmail(String newEmail) async {
+    if (_firebaseUser == null) return;
+    
+    if (newEmail == _firebaseUser!.email) {
+      throw 'Ten adres email jest już aktualny.';
+    }
+
+    try {
+      await _firebaseUser!.verifyBeforeUpdateEmail(newEmail);
+      await _firebaseUser!.reload();
+      _firebaseUser = _auth.currentUser;
+      notifyListeners();
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        throw 'Ze względów bezpieczeństwa ta akcja wymaga ponownego zalogowania. Wyloguj się i zaloguj ponownie.';
+      }
+      throw _handleAuthError(e);
+    }
+  }
+  
+  /// Send Verification Email
+  Future<void> sendVerificationEmail() async {
+    final user = _auth.currentUser;
+    if (user != null && !user.emailVerified) {
+      await user.sendEmailVerification();
+    }
+  }
+
+  /// Check if email is verified
+  bool get isEmailVerified => _auth.currentUser?.emailVerified ?? false;
+
+  /// Delete Account
+  Future<void> deleteAccount() async {
+    if (_firebaseUser == null) return;
+    
+    final uid = _firebaseUser!.uid;
+    
+    // 1. Try Delete Firestore data (best effort, allow timeout)
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(uid).delete().timeout(const Duration(seconds: 5));
+    } catch (e) {
+      debugPrint('Warning: Firestore data delete failed or timed out: $e');
+    }
+
+    // 2. Delete Auth Account
+    try {
+      await _firebaseUser!.delete();
+      await clearUserData();
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        throw 'Ze względów bezpieczeństwa usuwanie konta wymaga ponownego zalogowania. Wyloguj się i zaloguj ponownie.';
+      }
+      throw _handleAuthError(e);
+    } catch (e) {
+       throw 'Wystąpił nieoczekiwany błąd podczas usuwania konta: $e';
+    }
+  }
   
   /// Upgrade Subscription
   Future<void> upgradeSubscription(SubscriptionTier newTier) async {
@@ -455,8 +655,6 @@ class UserProvider with ChangeNotifier {
       
       // Set expiry date based on tier
       if (newTier != SubscriptionTier.free) {
-        // For demo: set expiry to 30 days from now
-        // In production, this would be set by payment processor
         _subscriptionExpiryDate = DateTime.now().add(const Duration(days: 30));
       } else {
         _subscriptionExpiryDate = null;
@@ -488,7 +686,6 @@ class UserProvider with ChangeNotifier {
     try {
       await _auth.signOut();
       
-      // Only sign out from Google if on web (to avoid initialization error)
       if (kIsWeb) {
         try {
           final googleSignIn = GoogleSignIn(
@@ -506,18 +703,54 @@ class UserProvider with ChangeNotifier {
       await clearUserData();
     } catch (e) {
       debugPrint('Sign out error: $e');
-      // Still clear local data even if remote sign out fails
       await clearUserData();
     }
   }
 
-  /// Delete Account
-  Future<void> deleteAccount() async {
+  /// Re-authenticate with Password
+  Future<void> reauthenticateWithPassword(String password) async {
+    if (_firebaseUser?.email == null) return;
     try {
-      await _auth.currentUser?.delete();
-      await clearUserData();
+      final credential = EmailAuthProvider.credential(email: _firebaseUser!.email!, password: password);
+      await _firebaseUser!.reauthenticateWithCredential(credential);
+    } on FirebaseAuthException catch (e) {
+      throw _handleAuthError(e);
+    }
+  }
+
+  /// Re-authenticate with Google
+  Future<void> reauthenticateWithGoogle() async {
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        clientId: kIsWeb ? '733835310780-skijm4f6hmjcctrrb4s2hfnq052lvo2m.apps.googleusercontent.com' : null,
+        scopes: ['email'],
+      );
+      
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      if (googleUser == null) throw 'Anulowano weryfikację Google.';
+      
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      
+      await _firebaseUser!.reauthenticateWithCredential(credential);
     } catch (e) {
-      throw 'Nie udało się usunąć konta. Zaloguj się ponownie i spróbuj jeszcze raz.';
+      throw 'Błąd weryfikacji Google: $e';
+    }
+  }
+
+  /// Re-authenticate with Facebook
+  Future<void> reauthenticateWithFacebook() async {
+    try {
+      final LoginResult result = await FacebookAuth.instance.login();
+      if (result.status != LoginStatus.success) throw 'Anulowano weryfikację Facebook.';
+      
+      final OAuthCredential credential = FacebookAuthProvider.credential(result.accessToken!.tokenString);
+      await _firebaseUser!.reauthenticateWithCredential(credential);
+    } catch (e) {
+      throw 'Błąd weryfikacji Facebook: $e';
     }
   }
 

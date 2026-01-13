@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../core/models/models.dart';
 import 'plan_provider.dart';
+import '../services/notification_service.dart';
 
 class LiveWorkoutProvider with ChangeNotifier {
   final PlanProvider _planProvider;
@@ -126,6 +127,8 @@ class LiveWorkoutProvider with ChangeNotifier {
         _remainingRestSeconds--;
         notifyListeners();
       } else {
+        // Timer finished - Notification
+        NotificationService().showRestFinishedNotification();
         skipRest();
       }
     });

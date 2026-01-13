@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -9,6 +10,7 @@ import '../../../providers/user_provider.dart';
 import '../../../providers/progress_provider.dart';
 import '../../../models/subscription_plan.dart';
 import '../../../services/notification_service.dart';
+import '../../../core/widgets/worm_loader.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -48,12 +50,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // Info State
   bool? _isInfoExpanded;
+  bool? _isSecurityExpanded;
 
   // Safe getters
   bool get isMeasurementsExpanded => _isMeasurementsExpanded ?? false;
   bool get isAppearanceExpanded => _isAppearanceExpanded ?? false;
   bool get isLanguageExpanded => _isLanguageExpanded ?? false;
   bool get isInfoExpanded => _isInfoExpanded ?? false;
+  bool get isSecurityExpanded => _isSecurityExpanded ?? false;
   bool get isNotificationsExpanded => _isNotificationsExpanded ?? false;
 
 
@@ -94,6 +98,108 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 8),
         ],
       ],
+    );
+  }
+
+  Widget _buildSecuritySection() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
+    return Column(
+      children: [
+        ListTile(
+          leading: Container(
+             padding: const EdgeInsets.all(8),
+             decoration: BoxDecoration(
+               color: Colors.orange.withOpacity(0.1),
+               borderRadius: BorderRadius.circular(8),
+             ),
+             child: const Icon(Icons.lock_outline, color: Colors.orange, size: 20),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          title: Text(
+            'Hasło i bezpieczeństwo',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: colorScheme.onSurface,
+            ),
+          ),
+          subtitle: Text(
+            'Zapomniane hasło? Możesz je zresetować.',
+             style: TextStyle(color: Colors.grey[500], fontSize: 11),
+          ),
+          trailing: AnimatedRotation(
+            turns: isSecurityExpanded ? 0.25 : 0.0,
+             duration: const Duration(milliseconds: 200),
+            child: const Icon(Icons.chevron_right, color: AppColors.primary),
+          ),
+          onTap: () {
+            setState(() {
+              _isSecurityExpanded = !isSecurityExpanded;
+            });
+          },
+        ),
+        if (isSecurityExpanded) ...[
+          // Only show password/email options if user logged in via password
+          if (context.watch<UserProvider>().firebaseUser?.providerData.any((p) => p.providerId == 'password') ?? false) ...[
+            _buildSecurityItem(
+              label: 'zapomniałeś hasło',
+              actionText: 'Zmień hasło',
+              actionColor: AppColors.primary,
+              onTap: _handleResetPassword,
+            ),
+            _buildSecurityItem(
+              label: 'zmień email',
+              actionText: 'zmień email',
+              actionColor: AppColors.primary,
+              onTap: _handleChangeEmail,
+            ),
+          ],
+          _buildSecurityItem(
+            label: 'usuń konto',
+            actionText: 'usuń konto',
+            actionColor: Colors.red,
+            onTap: _handleDeleteAccount,
+          ),
+          const SizedBox(height: 12),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildSecurityItem({
+    required String label,
+    required String actionText,
+    required Color actionColor,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Row(
+          children: [
+            const SizedBox(width: 40), // Indent to align with title text
+            Icon(Icons.chevron_right, size: 16, color: AppColors.primary.withOpacity(0.5)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
+            ),
+            Text(
+              actionText,
+              style: TextStyle(
+                color: actionColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -190,16 +296,247 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  void _changePassword() {
+  Future<void> _handleResetPassword() async {
+    try {
+      await context.read<UserProvider>().sendPasswordResetEmail();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Wysłano email resetujący hasło. Sprawdź swoją skrzynkę.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Błąd: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    }
+  }
+
+  void _handleChangeEmail() {
+    final emailController = TextEditingController();
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Zmień hasło'),
-        content: const Text('Funkcja zmiany hasła będzie dostępna wkrótce.'),
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Zmień email'),
+        content: SizedBox(
+          width: 500,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Wpisz nowy adres email:'),
+              const SizedBox(height: 10),
+              TextField(
+                controller: emailController,
+                decoration: const InputDecoration(
+                  hintText: 'Nowy email',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Anuluj'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              if (emailController.text.isNotEmpty) {
+                try {
+                  await context.read<UserProvider>().updateEmail(emailController.text.trim());
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Email został zaktualizowany!')),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                     ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Błąd: $e'), backgroundColor: AppColors.error),
+                    );
+                  }
+                }
+              }
+            },
+            child: const Text('Zmień'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleDeleteAccount() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Usuń konto', style: TextStyle(color: Colors.red)),
+        content: const SizedBox(
+          width: 500,
+          child: Text(
+            'UWAGA: Ta operacja jest nieodwracalna. Wszystkie Twoje dane zostaną usunięte. Czy na pewno chcesz kontynuować?'
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Anuluj'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext); // Close first dialog
+              
+              final user = context.read<UserProvider>().firebaseUser;
+              if (user == null) return;
+              
+              // Check providers
+              bool isGoogle = user.providerData.any((info) => info.providerId == 'google.com');
+              bool isFacebook = user.providerData.any((info) => info.providerId == 'facebook.com');
+              
+              if (isGoogle) {
+                 _showSocialDeleteDialog('Google', () => context.read<UserProvider>().reauthenticateWithGoogle());
+              } else if (isFacebook) {
+                 _showSocialDeleteDialog('Facebook', () => context.read<UserProvider>().reauthenticateWithFacebook());
+              } else {
+                 // Default to password
+                 _showPasswordDeleteDialog();
+              }
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('USUŃ'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPasswordDeleteDialog() {
+    final passwordController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Potwierdź hasło'),
+        content: SizedBox(
+          width: 500,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Aby usunąć konto, wprowadź swoje hasło:'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: passwordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Hasło',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Anuluj'),
+          ),
+          TextButton(
+            onPressed: () async {
+              if (passwordController.text.isEmpty) return;
+              
+              // Close password dialog
+              Navigator.pop(dialogContext);
+              
+              // Show loading dialog
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (loadingContext) => Center(child: WormLoader(size: 40)),
+              );
+              
+              try {
+                // 1. Re-authenticate
+                await context.read<UserProvider>().reauthenticateWithPassword(passwordController.text);
+                
+                // 2. Delete Account
+                await context.read<UserProvider>().deleteAccount();
+                
+                // 3. Success -> Navigate to Login
+                if (mounted) {
+                   Navigator.of(context).pop(); // Close loading
+                   Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                   ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Konto zostało trwale usunięte.')),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  Navigator.of(context).pop(); // Close loading
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Błąd: $e'), backgroundColor: AppColors.error),
+                  );
+                }
+              }
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('POTWIERDŹ I USUŃ'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  void _showSocialDeleteDialog(String providerName, Future<void> Function() verifyAction) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Weryfikacja $providerName'),
+        content: SizedBox(
+           width: 500,
+           child: Text('Aby usunąć konto, musisz potwierdzić tożsamość logując się ponownie przez $providerName.'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Anuluj'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (loadingContext) => Center(child: WormLoader(size: 40)),
+              );
+
+              try {
+                // 1. Re-authenticate
+                await verifyAction();
+                
+                // 2. Delete Account
+                await context.read<UserProvider>().deleteAccount();
+                
+                 if (mounted) {
+                   Navigator.of(context).pop(); // Close loading
+                   Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                   ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Konto zostało trwale usunięte.')),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  Navigator.of(context).pop(); // Close loading
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Błąd: $e'), backgroundColor: AppColors.error),
+                  );
+                }
+              }
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('ZWERYFIKUJ I USUŃ'),
           ),
         ],
       ),
@@ -209,19 +546,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _logout() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Wyloguj się'),
-        content: const Text('Czy na pewno chcesz się wylogować?'),
+        content: const SizedBox(
+           width: 500,
+           child: Text('Czy na pewno chcesz się wylogować?'),
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Anuluj'),
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(context); // Close dialog
+              Navigator.pop(dialogContext); // Close dialog
               await context.read<UserProvider>().signOut();
-              if (context.mounted) {
+              if (mounted) {
                 Navigator.of(context).pushNamedAndRemoveUntil(
                   '/login',
                   (route) => false, // Remove all previous routes
@@ -268,10 +608,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         centerTitle: true,
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: colorScheme.onSurface),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        automaticallyImplyLeading: false,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -355,13 +692,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     height: 100,
                                   )
                                 : user.avatarUrl != null
-                                    ? Image.network(
-                                        user.avatarUrl!,
+                                    ? CachedNetworkImage(
+                                        imageUrl: user.avatarUrl!,
                                         fit: BoxFit.cover,
                                         width: 100,
                                         height: 100,
-                                        errorBuilder: (context, error, stackTrace) {
-                                          debugPrint('Error loading avatar: $error');
+                                        placeholder: (context, url) => Container(
+                                          color: AppColors.avatarColors[_selectedColorIndex],
+                                          child: const Icon(
+                                            Icons.person,
+                                            size: 50,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        errorWidget: (context, url, error) {
                                           return Container(
                                             color: AppColors.avatarColors[_selectedColorIndex],
                                             child: const Icon(
@@ -454,22 +798,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     controller: _emailController,
                     enabled: false,
                     prefixIcon: const Icon(Icons.email_outlined),
-                    suffixIcon: Container(
-                      margin: const EdgeInsets.all(8),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.success.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                           Icon(Icons.check_circle, size: 14, color: AppColors.success),
-                           SizedBox(width: 4),
-                           Text('Zweryfikowany', style: TextStyle(color: AppColors.success, fontSize: 10, fontWeight: FontWeight.bold))
-                        ],
-                      ),
-                    ),
+                    suffixIcon: userProvider.isEmailVerified
+                        ? Container(
+                            margin: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.success.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                 Icon(Icons.check_circle, size: 14, color: AppColors.success),
+                                 SizedBox(width: 4),
+                                 Text('Zweryfikowany', style: TextStyle(color: AppColors.success, fontSize: 10, fontWeight: FontWeight.bold))
+                              ],
+                            ),
+                          )
+                        : InkWell(
+                            onTap: () async {
+                              try {
+                                await userProvider.sendVerificationEmail();
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Wysłano link weryfikacyjny. Sprawdź pocztę.'),
+                                      backgroundColor: AppColors.primary,
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Błąd: $e'), backgroundColor: AppColors.error),
+                                  );
+                                }
+                              }
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              margin: const EdgeInsets.all(8),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: AppColors.error.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                   Icon(Icons.touch_app, size: 14, color: AppColors.error),
+                                   SizedBox(width: 4),
+                                   Text('Kliknij, aby zweryfikować', style: TextStyle(color: AppColors.error, fontSize: 10, fontWeight: FontWeight.bold))
+                                ],
+                              ),
+                            ),
+                          ),
                   ),
                  ],
               ),
@@ -482,7 +866,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Expanded(
                     child: CustomButton(
                       text: 'Anuluj',
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () {
+                        // Unfocus keyboard
+                        FocusScope.of(context).unfocus();
+                        // Reset fields to original values
+                        _loadUserData();
+                        // Optional: Show feedback
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Zmiany zostały anulowane')),
+                        );
+                      },
                       type: CustomButtonType.outline,
                     ),
                   ),
@@ -517,16 +910,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _buildDivider(),
                     _buildAppearanceSection(),
                     _buildDivider(),
-                    _buildSettingsItem(
-                      icon: Icons.card_membership,
-                      title: 'Zarządzaj subskrypcją',
-                      onTap: () {
-                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Funkcja zarządzania subskrypcją wkrótce dostępna')),
-                        );
-                      },
-                    ),
-                    _buildDivider(),
                     _buildLanguageSection(),
                     _buildDivider(),
                     _buildInfoSection(),
@@ -540,46 +923,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               
               const SizedBox(height: 24),
 
-              // Security Banner
+              // Security Section
               Container(
-                 padding: const EdgeInsets.all(16),
                  decoration: BoxDecoration(
                    color: colorScheme.surface,
                    borderRadius: BorderRadius.circular(16),
                  ),
-                 child: Row(
-                   children: [
-                     Container(
-                       padding: const EdgeInsets.all(10),
-                       decoration: BoxDecoration(
-                         color: Colors.orange.withOpacity(0.1),
-                         borderRadius: BorderRadius.circular(12),
-                       ),
-                       child: const Icon(Icons.lock, color: Colors.orange),
-                     ),
-                     const SizedBox(width: 16),
-                     Expanded(
-                       child: Column(
-                         crossAxisAlignment: CrossAxisAlignment.start,
-                         children: [
-                           const Text(
-                             'Hasło i bezpieczeństwo',
-                             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                           ),
-                           const SizedBox(height: 4),
-                           Text(
-                             'Zapomniane hasło? Możesz je zresetować.',
-                             style: TextStyle(color: Colors.grey[400], fontSize: 11),
-                           ),
-                         ],
-                       ),
-                     ),
-                     TextButton(
-                       onPressed: _changePassword,
-                       child: const Text('Zmień hasło', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
-                     )
-                   ],
-                 ),
+                 child: _buildSecuritySection(),
               ),
 
               const SizedBox(height: 32),

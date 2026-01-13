@@ -167,6 +167,31 @@ class NotificationService {
   // HELPER MOTHODS
   // ===========================================================================
 
+  /// Show Rest Finished Notification
+  Future<void> showRestFinishedNotification() async {
+    await flutterLocalNotificationsPlugin.show(
+      999, // Rest Timer ID
+      'Koniec odpoczynku! ⏱️', 
+      'Czas wracać do ćwiczeń. Następna seria czeka!', 
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'fitplan_rest_timer',
+          'Licznik Odpoczynku',
+          channelDescription: 'Powiadomienia o końcu przerwy',
+          importance: Importance.max,
+          priority: Priority.high,
+          playSound: true,
+          enableVibration: true,
+        ),
+        iOS: DarwinNotificationDetails(
+          presentSound: true,
+          presentAlert: true,
+          presentBanner: true,
+        ),
+      ),
+    );
+  }
+
   /// Show an instant notification for testing purposes
   Future<void> showTestNotification() async {
     await flutterLocalNotificationsPlugin.show(

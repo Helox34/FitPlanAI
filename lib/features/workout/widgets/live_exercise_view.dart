@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'dart:ui'; // For FontFeature
+import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/models/models.dart';
-
-import 'dart:async';
+import '../../../core/widgets/worm_loader.dart';
 
 class LiveExerciseView extends StatefulWidget {
   final PlanItem exercise;
@@ -24,7 +26,8 @@ class LiveExerciseView extends StatefulWidget {
 
 class _LiveExerciseViewState extends State<LiveExerciseView> {
   Timer? _timer;
-  int _secondsElapsed = 0;
+  int _secondsRemaining = 0;
+  int _totalSeconds = 0;
   bool _isTimerRunning = false;
   bool _hasTimer = false;
 
@@ -40,15 +43,46 @@ class _LiveExerciseViewState extends State<LiveExerciseView> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.exercise != widget.exercise) {
       _stopTimer();
-      _secondsElapsed = 0;
       _checkIfTimed();
     }
   }
 
   void _checkIfTimed() {
-    final lower = widget.exercise.details.toLowerCase();
+    final details = widget.exercise.details.toLowerCase();
+    int seconds = 0;
+
+    // Check for minutes (e.g. "20 min", "20-30 min")
+    // Regex matches: digits, optional range "-digits", whitespace, "min"
+    if (details.contains('min')) {
+      final RegExp minRegex = RegExp(r'(\d+)(?:-(\d+))?\s*min');
+      final match = minRegex.firstMatch(details);
+      if (match != null) {
+        // Use the first number (minimum time) as the base
+        final int mins = int.parse(match.group(1)!);
+        seconds = mins * 60;
+      }
+    } 
+    // Check for seconds (e.g. "30s", "45 sec")
+    else if (details.contains('s') || details.contains('sec')) {
+      final RegExp secRegex = RegExp(r'(\d+)\s*(?:s|sec|sek)');
+      final match = secRegex.firstMatch(details);
+      if (match != null) {
+        seconds = int.parse(match.group(1)!);
+      }
+    }
+
     setState(() {
-      _hasTimer = lower.contains('minut') || lower.contains('sekund');
+      if (seconds > 0) {
+        _hasTimer = true;
+        _totalSeconds = seconds;
+        _secondsRemaining = seconds;
+        _isTimerRunning = false; // Auto-start disabled, user must click start
+      } else {
+        _hasTimer = false;
+        _totalSeconds = 0;
+        _secondsRemaining = 0;
+        _isTimerRunning = false;
+      }
     });
   }
 
@@ -60,7 +94,12 @@ class _LiveExerciseViewState extends State<LiveExerciseView> {
     if (_isTimerRunning) {
       _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
         setState(() {
-          _secondsElapsed++;
+          if (_secondsRemaining > 0) {
+            _secondsRemaining--;
+          } else {
+            _stopTimer();
+            // Timer finished
+          }
         });
       });
     } else {
@@ -70,7 +109,9 @@ class _LiveExerciseViewState extends State<LiveExerciseView> {
   
   void _stopTimer() {
     _timer?.cancel();
-    _isTimerRunning = false;
+    setState(() {
+      _isTimerRunning = false;
+    });
   }
 
   @override
@@ -80,13 +121,19 @@ class _LiveExerciseViewState extends State<LiveExerciseView> {
   }
 
   String get _formattedTime {
-    final minutes = (_secondsElapsed / 60).floor();
-    final seconds = _secondsElapsed % 60;
+    final minutes = (_secondsRemaining / 60).floor();
+    final seconds = _secondsRemaining % 60;
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 
   @override
   Widget build(BuildContext context) {
+    // Calculate progress for the circular indicator: 1.0 (full) -> 0.0 (empty)
+    double progress = 0.0;
+    if (_totalSeconds > 0) {
+      progress = _secondsRemaining / _totalSeconds;
+    }
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -137,42 +184,118 @@ class _LiveExerciseViewState extends State<LiveExerciseView> {
         
         // Timer Section (if applicable)
         if (_hasTimer) ...[
-          Text(
-            _formattedTime,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 64,
-              fontWeight: FontWeight.bold,
-              fontFeatures: [FontFeature.tabularFigures()],
-            ),
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton.icon(
-            onPressed: _toggleTimer,
-            icon: Icon(_isTimerRunning ? Icons.pause : Icons.play_arrow),
-            label: Text(
-              _isTimerRunning ? 'Zatrzymaj' : 'Start',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _isTimerRunning ? Colors.redAccent : AppColors.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox(
+                width: 220,
+                height: 220,
+                child: CircularProgressIndicator(
+                  value: progress,
+                  strokeWidth: 10,
+                  backgroundColor: Colors.white10,
+                  // Change color to red when close to finish (< 10 seconds)
+                  color: _secondsRemaining <= 10 && _secondsRemaining > 0 
+                      ? Colors.redAccent 
+                      : AppColors.primary,
+                ),
               ),
-            ),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (widget.exercise.videoUrl != null) ...[
+                    // ... video player ...
+                    Container(
+                      height: 240,
+                      width: double.infinity,
+                      color: Colors.blueGrey,
+                      child: const Center(
+                        child: Text('Video Player Here', style: TextStyle(color: Colors.white)),
+                      ),
+                    ),
+                  ] else
+                    Container(
+                      height: 240, // Adjust height as needed
+                      width: double.infinity,
+                      color: Colors.black12,
+                      child: Center(
+                        child: WormLoader(size: 40),
+                      ),
+                    ),
+                  Text(
+                    _formattedTime,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 56,
+                      fontWeight: FontWeight.bold,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'POZOSTAŁO',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.5),
+                      fontSize: 12,
+                      letterSpacing: 2.0,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 30),
+          
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Reset Button (only show if timer has run at least a bit)
+              if (_secondsRemaining < _totalSeconds && !_isTimerRunning)
+                Padding(
+                  padding: const EdgeInsets.only(right: 20),
+                  child: IconButton(
+                    iconSize: 32,
+                    icon: const Icon(Icons.refresh, color: Colors.white54),
+                    onPressed: () {
+                      _stopTimer();
+                      setState(() {
+                        _secondsRemaining = _totalSeconds;
+                      });
+                    },
+                    tooltip: 'Resetuj czas',
+                  ),
+                ),
+                
+              ElevatedButton.icon(
+                onPressed: _secondsRemaining == 0 ? null : _toggleTimer,
+                icon: Icon(_isTimerRunning ? Icons.pause : Icons.play_arrow),
+                label: Text(
+                  _isTimerRunning ? 'PAUZA' : 'START',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _isTimerRunning ? Colors.orangeAccent : AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  elevation: 6,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 20),
         ],
         
-        // Tips Box
+        // Tips Box (or Spacer)
         if (widget.exercise.tips != null || widget.exercise.note != null)
          Expanded(
            child: SingleChildScrollView(
             child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 32),
-              padding: const EdgeInsets.all(20),
+              margin: const EdgeInsets.symmetric(horizontal: 32, vertical: 10),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: const Color(0xFF1E293B), // Dark slate
                 borderRadius: BorderRadius.circular(12),
@@ -183,24 +306,25 @@ class _LiveExerciseViewState extends State<LiveExerciseView> {
                 children: [
                   Row(
                     children: const [
-                      Icon(Icons.info_outline, color: Colors.amber, size: 20),
+                      Icon(Icons.info_outline, color: Colors.amber, size: 18),
                       SizedBox(width: 8),
                       Text(
                         'Wskazówka',
                         style: TextStyle(
                           color: Colors.amber,
                           fontWeight: FontWeight.bold,
+                          fontSize: 14,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   Text(
                     widget.exercise.tips ?? widget.exercise.note ?? '',
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.9),
-                      fontSize: 14,
-                      height: 1.5,
+                      fontSize: 13,
+                      height: 1.4,
                     ),
                   ),
                 ],
@@ -213,7 +337,7 @@ class _LiveExerciseViewState extends State<LiveExerciseView> {
           
         // Done Button
         Padding(
-          padding: const EdgeInsets.all(32.0),
+          padding: const EdgeInsets.fromLTRB(32, 0, 32, 32),
           child: SizedBox(
             width: double.infinity,
             height: 56,
@@ -228,17 +352,20 @@ class _LiveExerciseViewState extends State<LiveExerciseView> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
+                // Highlight button green if timer finished
+                backgroundColor: (_hasTimer && _secondsRemaining == 0) ? Colors.green : const Color(0xFF2E7D32),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
+                  side: (_hasTimer && _secondsRemaining == 0) 
+                      ? const BorderSide(color: Colors.white, width: 2)
+                      : BorderSide.none,
                 ),
+                elevation: 4,
               ),
             ),
           ),
         ),
-        
-        const SizedBox(height: 20),
       ],
     );
   }

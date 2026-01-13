@@ -1,23 +1,18 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/worm_loader.dart';
 
 class LiveRestView extends StatelessWidget {
   final int remainingSeconds;
-  final String? nextExerciseName;
+  final String nextExerciseName;
   final VoidCallback onSkip;
 
   const LiveRestView({
     super.key,
     required this.remainingSeconds,
-    this.nextExerciseName,
+    required this.nextExerciseName,
     required this.onSkip,
   });
-
-  String get _formattedTime {
-    final minutes = (remainingSeconds / 60).floor();
-    final seconds = remainingSeconds % 60;
-    return '$minutes:${seconds.toString().padLeft(2, '0')}';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,72 +20,91 @@ class LiveRestView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text(
-            'Czas na odpoczynek',
+          Text(
+            'PRZERWA',
             style: TextStyle(
-              color: AppColors.primary,
               fontSize: 24,
               fontWeight: FontWeight.bold,
+              color: Colors.white,
+              letterSpacing: 2,
             ),
           ),
           const SizedBox(height: 40),
-          
-          // Timer Circle
           Stack(
             alignment: Alignment.center,
             children: [
               SizedBox(
                 width: 200,
                 height: 200,
-                child: CircularProgressIndicator(
-                  value: remainingSeconds / 180.0, // Assuming 3 mins max
-                  strokeWidth: 12,
-                  backgroundColor: Colors.white10,
-                  color: AppColors.primary, // Dark mode background
+                child: WormLoader(
+                  size: 200,
+                  color: AppColors.primary,
                 ),
               ),
-              Text(
-                _formattedTime,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 48,
-                  fontWeight: FontWeight.bold,
-                  fontFeatures: [FontFeature.tabularFigures()],
-                ),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _formatTime(remainingSeconds),
+                    style: const TextStyle(
+                      fontSize: 48,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const Text(
+                    'do końca',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          
           const SizedBox(height: 40),
-          
-          if (nextExerciseName != null) ...[
-            Text(
-              'Następnie: $nextExerciseName',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.7),
-                fontSize: 16,
+          Text(
+            'Następnie:',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.white70,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Text(
+              nextExerciseName,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
               ),
             ),
-            const SizedBox(height: 24),
-          ],
-          
+          ),
+          const SizedBox(height: 40),
           ElevatedButton(
             onPressed: onSkip,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.black,
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(30),
               ),
             ),
-            child: const Text(
-              'Pomiń przerwę',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
+            child: const Text('POMIŃ PRZERWĘ'),
           ),
         ],
       ),
     );
+  }
+
+  String _formatTime(int seconds) {
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
   }
 }

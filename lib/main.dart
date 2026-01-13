@@ -17,6 +17,7 @@ import 'providers/progress_provider.dart';
 import 'services/notification_service.dart';
 
 import 'providers/live_workout_provider.dart';
+import 'core/widgets/worm_loader.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,10 +30,14 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   
-  // Initialize Notifications
-  final notificationService = NotificationService();
-  await notificationService.initialize();
-  await notificationService.requestPermissions();
+  // Initialize Notifications (Safe Mode)
+  try {
+    final notificationService = NotificationService();
+    await notificationService.initialize();
+    // Do NOT await permissions here - it can block startup. moved to AppInitializer.
+  } catch (e) {
+    debugPrint('Error initializing notifications: $e');
+  }
   
   runApp(const FitPlanAIApp());
 }
@@ -97,6 +102,18 @@ class _AppInitializerState extends State<AppInitializer> {
     final userProvider = context.read<UserProvider>();
     await userProvider.loadUserData();
     
+    // Load Plans & Progress
+    // We do this after user data to ensure we know if user is logged in
+    await context.read<PlanProvider>().loadPlans();
+    await context.read<ProgressProvider>().loadProgress();
+
+    // Request Notification Permissions (Safe)
+    try {
+       await NotificationService().requestPermissions();
+    } catch (e) {
+       debugPrint('Error requesting permissions: $e');
+    }
+
     // Give Firebase a moment to restore session if any
     // (UserProvider listener updates _firebaseUser, but we might need a small delay or check currentUser directly)
     await Future.delayed(const Duration(milliseconds: 500));
@@ -120,7 +137,7 @@ class _AppInitializerState extends State<AppInitializer> {
   Widget build(BuildContext context) {
     return const Scaffold(
       body: Center(
-        child: CircularProgressIndicator(),
+        child: WormLoader(size: 60),
       ),
     );
   }

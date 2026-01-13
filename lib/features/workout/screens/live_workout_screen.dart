@@ -5,6 +5,7 @@ import '../../../providers/live_workout_provider.dart';
 import '../../../providers/user_provider.dart';
 import '../widgets/live_exercise_view.dart';
 import '../widgets/live_rest_view.dart';
+import '../../../core/widgets/worm_loader.dart';
 
 class LiveWorkoutScreen extends StatefulWidget {
   const LiveWorkoutScreen({super.key});
@@ -91,7 +92,7 @@ class _LiveWorkoutScreenState extends State<LiveWorkoutScreen> {
                  WidgetsBinding.instance.addPostFrameCallback((_) {
                    if (mounted) Navigator.of(context).pop();
                 });
-                return const Center(child: CircularProgressIndicator());
+                return Center(child: WormLoader(size: 50));
               }
               
               final exercise = provider.currentExercise;
@@ -133,7 +134,7 @@ class _LiveWorkoutScreenState extends State<LiveWorkoutScreen> {
                     child: provider.isResting
                         ? LiveRestView(
                             remainingSeconds: provider.remainingRestSeconds,
-                            nextExerciseName: provider.nextExercise?.name ?? provider.currentExercise?.name, 
+                            nextExerciseName: provider.nextExercise?.name ?? provider.currentExercise?.name ?? 'Koniec',  
                             onSkip: provider.skipRest,
                           )
                         : LiveExerciseView(

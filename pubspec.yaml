@@ -78,6 +78,7 @@ dependencies:
   
   # Utilities
   intl: ^0.20.1
+  cached_network_image: ^3.4.1
 
 
 dev_dependencies:

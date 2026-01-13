@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import 'worm_loader.dart';
 
 enum CustomButtonType { primary, secondary, outline, text }
 
@@ -84,12 +85,12 @@ class CustomButton extends StatelessWidget {
 
   Widget _buildContent() {
     if (isLoading) {
-      return const SizedBox(
-        height: 20,
-        width: 20,
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-          valueColor: AlwaysStoppedAnimation<Color>(AppColors.textOnPrimary),
+      return SizedBox(
+        height: 24, // Adjusted height for WormLoader
+        width: 24, // Adjusted width for WormLoader
+        child: WormLoader(
+          size: 24,
+          color: AppColors.textOnPrimary, // Using existing color
         ),
       );
     }

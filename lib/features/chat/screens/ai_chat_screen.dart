@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/models/models.dart';
 import '../../../core/widgets/custom_button.dart';
+import '../../../core/widgets/worm_loader.dart';
 import '../../../providers/chat_provider.dart';
 import '../../../providers/plan_provider.dart';
 import '../../../providers/user_provider.dart';
@@ -221,7 +222,32 @@ class _AIChatScreenState extends State<AIChatScreen> {
                   builder: (context, chatProvider, _) {
                     if (chatProvider.messages.isEmpty) {
                       return const Center(
-                        child: CircularProgressIndicator(),
+                        child: WormLoader(size: 30),
+                      );
+                    }
+                    
+                    // Show WormLoader if chatProvider is loading and messages are not empty
+                    if (chatProvider.isLoading) {
+                      return Column(
+                        children: [
+                          Expanded(
+                            child: ListView.builder(
+                              controller: _scrollController,
+                              padding: const EdgeInsets.all(16),
+                              itemCount: chatProvider.messages.length,
+                              itemBuilder: (context, index) {
+                                final message = chatProvider.messages[index];
+                                return _buildMessage(message);
+                              },
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Center(
+                              child: WormLoader(size: 30),
+                            ),
+                          ),
+                        ],
                       );
                     }
                     

@@ -9,6 +9,7 @@ import '../../onboarding/screens/plan_type_selection_screen.dart';
 import '../../onboarding/screens/plan_type_selection_screen.dart';
 
 import '../../workout/widgets/day_selector.dart';
+import '../../../core/widgets/worm_loader.dart';
 
 /// Screen displaying the user's diet plan (analogous to MyPlanScreen)
 class MyDietScreen extends StatefulWidget {
@@ -20,6 +21,8 @@ class MyDietScreen extends StatefulWidget {
 
 class _MyDietScreenState extends State<MyDietScreen> {
   int _selectedDayIndex = DateTime.now().weekday - 1; // 0 = Monday
+  // Initialize to the Monday of the current week
+  DateTime _currentWeekStart = DateTime.now().subtract(Duration(days: DateTime.now().weekday - 1));
   
   @override
   void initState() {
@@ -39,6 +42,11 @@ class _MyDietScreenState extends State<MyDietScreen> {
   
   @override
   Widget build(BuildContext context) {
+    // Ensure index is valid (0-6)
+    if (_selectedDayIndex < 0 || _selectedDayIndex > 6) {
+      _selectedDayIndex = 0;
+    }
+
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
@@ -46,6 +54,7 @@ class _MyDietScreenState extends State<MyDietScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         title: Text(
@@ -65,6 +74,19 @@ class _MyDietScreenState extends State<MyDietScreen> {
       ),
       body: Consumer<PlanProvider>(
         builder: (context, planProvider, _) {
+          if (planProvider.isGenerating) {
+             return const Center(
+               child: Column(
+                 mainAxisAlignment: MainAxisAlignment.center,
+                 children: [
+                   WormLoader(color: Color(0xFF10B981)), // Explicit Green for Diet
+                   SizedBox(height: 24),
+                   Text('Generowanie diety...', style: TextStyle(color: Colors.white70)),
+                 ],
+               ),
+             );
+          }
+
           final plan = planProvider.dietPlan;
           
           if (plan == null) {
@@ -103,34 +125,29 @@ class _MyDietScreenState extends State<MyDietScreen> {
                 ),
               ),
               
-              // Day selector
-              Builder(
-                builder: (context) {
-                  // Determine days based on plan length
-                  final dayCount = plan.schedule.length;
-                  final List<String> days;
-                  
-                  if (dayCount == 7) {
-                    days = const ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Nie'];
-                  } else {
-                    // Show exact number of days available
-                    days = List.generate(dayCount, (i) => 'Dzień ${i + 1}');
-                  }
-                  
-                  return Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    color: theme.scaffoldBackgroundColor,
-                    child: DaySelector(
-                      selectedDayIndex: _selectedDayIndex,
-                      onDaySelected: (index) {
-                        setState(() {
-                          _selectedDayIndex = index;
-                        });
-                      },
-                      customDays: days,
-                    ),
-                  );
-                }
+              // Day Selector (Calendar Strip)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                color: theme.scaffoldBackgroundColor,
+                child: DaySelector(
+                  currentWeekStart: _currentWeekStart,
+                  selectedDayIndex: _selectedDayIndex,
+                  onDaySelected: (index) {
+                    setState(() {
+                      _selectedDayIndex = index;
+                    });
+                  },
+                  onPreviousWeek: () {
+                    setState(() {
+                      _currentWeekStart = _currentWeekStart.subtract(const Duration(days: 7));
+                    });
+                  },
+                  onNextWeek: () {
+                    setState(() {
+                      _currentWeekStart = _currentWeekStart.add(const Duration(days: 7));
+                    });
+                  },
+                ),
               ),
               
               const Divider(height: 1, indent: 16, endIndent: 16),

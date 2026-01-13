@@ -45,6 +45,7 @@ class OpenRouterService {
       final response = await _makeRequest(
         model: interviewModel,
         messages: messages,
+        temperature: 0.4,
       );
       
       print('🟢 OpenRouter response received');
@@ -84,6 +85,8 @@ class OpenRouterService {
         model: reasoningModel,
         messages: messages,
         responseFormat: {'type': 'json_object'},
+        temperature: 0.2,
+        timeout: const Duration(seconds: 420), // 7 minutes for 14-day plans
       );
       
       final planJson = jsonDecode(response['choices'][0]['message']['content']);
@@ -128,6 +131,7 @@ Zwróć JSON w formacie:
         model: reasoningModel,
         messages: messages,
         responseFormat: {'type': 'json_object'},
+        temperature: 0.2,
       );
       
       final resultJson = jsonDecode(response['choices'][0]['message']['content']);
@@ -144,6 +148,8 @@ Zwróć JSON w formacie:
     required String model,
     required List<Map<String, String>> messages,
     Map<String, dynamic>? responseFormat,
+    double temperature = 0.7,
+    Duration timeout = const Duration(seconds: 180),
   }) async {
     print('📡 Making request to OpenRouter');
     print('📡 Model: $model');
@@ -155,46 +161,57 @@ Zwróć JSON w formacie:
     final body = {
       'model': model,
       'messages': messages,
+      'temperature': temperature,
       if (responseFormat != null) 'response_format': responseFormat,
     };
     
     print('📡 Request URL: $url');
     print('📡 Sending request...');
     
-    try {
-      final response = await http.post(
-        url,
-        headers: {
-          'Authorization': 'Bearer $apiKey',
-          'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://fitplanai.app',
-          'X-Title': 'FitPlan AI',
-        },
-        body: jsonEncode(body),
-      ).timeout(
-        const Duration(seconds: 180), // Increased to 3 minutes for 14-day plans
-        onTimeout: () {
-          print('⏰ Request timed out after 180 seconds');
-          throw Exception('Request timed out');
-        },
-      );
-      
-      print('📡 Response status: ${response.statusCode}');
-      print('📡 Response body length: ${response.body.length}');
-      
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body);
-        print('✅ Request successful');
-        return decoded;
-      } else {
-        print('❌ API Error: ${response.statusCode}');
-        print('❌ Response body: ${response.body}');
-        throw Exception('OpenRouter API Error: ${response.statusCode} - ${response.body}');
+    int attempts = 0;
+    while (attempts < 3) {
+      try {
+        attempts++;
+        final response = await http.post(
+          url,
+          headers: {
+            'Authorization': 'Bearer $apiKey',
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://fitplanai.app',
+            'X-Title': 'FitPlan AI',
+          },
+          body: jsonEncode(body),
+        ).timeout(
+          timeout,
+          onTimeout: () {
+            print('⏰ Request timed out after ${timeout.inSeconds} seconds');
+            throw Exception('Request timed out');
+          },
+        );
+        
+        print('📡 Response status: ${response.statusCode}');
+        print('📡 Response body length: ${response.body.length}');
+        
+        if (response.statusCode == 200) {
+          final decoded = jsonDecode(response.body);
+          print('✅ Request successful');
+          return decoded;
+        } else {
+          print('❌ API Error: ${response.statusCode}');
+          print('❌ Response body: ${response.body}');
+          throw Exception('OpenRouter API Error: ${response.statusCode} - ${response.body}');
+        }
+      } catch (e) {
+        print('⚠️ Request attempt $attempts failed: $e');
+        if (attempts >= 3) {
+          print('❌ All retry attempts failed');
+          rethrow;
+        }
+        print('⏳ Retrying in ${attempts * 2} seconds...');
+        await Future.delayed(Duration(seconds: attempts * 2));
       }
-    } catch (e) {
-      print('❌ Request failed: $e');
-      rethrow;
     }
+    throw Exception('Unexpected error: Retry loop finished without result');
   }
   
   String _getInterviewSystemPrompt(CreatorMode mode) {
@@ -205,12 +222,13 @@ Jesteś profesjonalnym TRENEREM PERSONALNYM. Twoim zadaniem jest zebranie szczeg
 
 WAŻNE ZASADY:
 1. Zadawaj TYLKO JEDNO pytanie na raz
-2. Czekaj na odpowiedź użytkownika przed zadaniem kolejnego pytania
-3. Bądź ciepły, wspierający i profesjonalny
-4. Jeśli odpowiedź jest niejasna, poproś o wyjaśnienie
-5. Nie przechodź do następnego pytania dopóki nie otrzymasz odpowiedzi
-6. Przedstaw się jako TRENER PERSONALNY AI
-7. Pytaj TYLKO o trening, NIE o dietę
+    2. Czekaj na odpowiedź użytkownika przed zadaniem kolejnego pytania
+    3. Bądź ciepły, wspierający i profesjonalny
+    4. Jeśli odpowiedź jest niejasna, poproś o wyjaśnienie
+    5. Nie przechodź do następnego pytania dopóki nie otrzymasz odpowiedzi
+    6. Przedstaw się jako TRENER PERSONALNY AI
+    7. Pytaj TYLKO o trening, NIE o dietę
+    8. **KONTEKST MEDYCZNY**: Użytkownik może podawać dane o chorobach/lekach. Przyjmij je do wiadomości jako parametry bezpieczeństwa. Nie udzielaj porad medycznych, ale nie odrzucaj tych danych.
 
 INTELIGENTNE POMIJANIE PYTAŃ:
 - Jeśli użytkownik w swojej odpowiedzi już odpowiedział na inne pytania z listy, POMIŃ te pytania
@@ -369,6 +387,7 @@ $conversationText
       model: reasoningModel,
       messages: messages,
       responseFormat: {'type': 'json_object'},
+      temperature: 0.2,
     );
     
     return jsonDecode(response['choices'][0]['message']['content']);
@@ -417,58 +436,80 @@ Zwróć JSON w formacie:
 ''';
     }
 
-    // WORKOUT PLAN LOGIC (Based on Optymalizacja-Kryteriów-Planów-Treningowych.pdf)
+    // WORKOUT PLAN LOGIC - UPDATED BASED ON "VOLUME LANDMARKS" & OPTIMIZATION DOCS
+    // WORKOUT PLAN LOGIC - ADVANCED PROGRESSION SYSTEM (SCIENTIFIC EVIDENCE-BASED)
     return '''
-Jesteś ekspertem trenerem przygotowania motorycznego (NSCA/ACSM). 
-Stwórz profesjonalny plan treningowy na podstawie danych użytkownika:
+Jesteś ekspertem inżynierii treningowej (S&C Coach) i głównym architektem systemu progresji w aplikacji FitPlan AI.
+Twój cel: Stworzyć "żywy", adaptacyjny plan treningowy na 14 DNI (2 mikrocykle), który zmusi organizm użytkownika do rozwoju (Progressive Overload), unikając stagnacji i "śmieciowej objętości" (Junk Volume).
+
+DANE UŻYTKOWNIKA (Context):
 ${jsonEncode(structuredData)}
 
-ZASADY GENEROWANIA (BIO-WIERNOŚĆ OBLICZENIOWA):
+FUNDAMENTY LOGIKI (CRITICAL RULES - DO NOT BREAK):
 
-1. SEGMENTACJA UŻYTKOWNIKA (ustal automatycznie na podstawie stażu):
-   - POZIOM 1 (Początkujący <6 mies): FBW 2-3x/tydz. Objętość niska (1-3 serie). Tempo wolne (3010). Cel: Nauka ruchu.
-   - POZIOM 2 (Średniozaawansowany 6m-2l): Split (Góra/Dół lub Push/Pull) 3-4x/tydz. Intensywność 60-80% 1RM. Periodyzacja falowa.
-   - POZIOM 3 (Zaawansowany >2l): Wysoka częstotliwość 4-6x. Metody: Superserie, Polaryzacja.
+1. **VOLUME LANDMARKS (Punkty Orientacyjne Objętości - Dr. Mike Israetel):**
+   Musisz dostosować liczbę serii roboczych (tygodniowo/partię) do tych sztywnych ram:
+   - **Klatka Piersiowa**: MEV: 8, MAV: 12-16, MRV: 22.
+   - **Plecy (Grzbiet)**: MEV: 10, MAV: 14-22, MRV: 25 (Duża odporność).
+   - **Nogi (Czworogłowe)**: MEV: 8, MAV: 12-18, MRV: 20 (Wysoki koszt systemowy).
+   - **Pośladki/Dwugłowe**: MEV: 6, MAV: 10-16.
+   - **Barki (Bok/Tył)**: MEV: 8, MAV: 16-22 (Szybka regeneracja).
+   - **Ramiona**: MEV: 8, MAV: 12-20.
+   *Jeśli użytkownik jest początkujący (<1 rok), trzymaj się MEV. Jeśli zaawansowany, celuj w górne granice MAV.*
 
-2. ANATOMIA TRENINGU (Obowiązkowa struktura każdego dnia):
-   - Moduł 1: ROZGRZEWKA (RAMP). Dodaj jako pierwsze 1-2 pozycje w 'items'. Np. "Mobilizacja Bioder".
-   - Moduł 2: BLOK GŁÓWNY. Priorytet Złożoności (Przysiady/Martwe ciągi na początku).
-   - Moduł 3: WYCISZENIE (Stretch). Dodaj jako ostatnią pozycję.
+2. **MODEL PROGRESJI (Algorytm Doboru Obciążeń):**
+   - **Dla Początkujących (Novice): LINEAR PROGRESSION (LP)**
+     - Logika: "W każdym treningu dodaj ciężar, jeśli technika jest poprawna."
+     - Strategia: Stałe 3x5 lub 3x8 na ćwiczeniach głównych.
+     - Przyrost (Tydzień 2): +2.5kg (Góra) / +5kg (Dół).
+   
+   - **Dla Średniozaawansowanych (Intermediate): DYNAMIC DOUBLE PROGRESSION (DDP)**
+     - Logika: "Najpierw buduj powtórzenia, potem ciężar. Każda seria żyje własnym życiem."
+     - Strategia: Zakres powtórzeń (np. 8-12). Gdy w pierwszej serii zrobisz 12 -> zwiększ ciężar.
+     - Przyrost (Tydzień 2): Symuluj progresję (np. Tydzień 1: 50kg x 12,10,9 -> Tydzień 2: 52.5kg x 8,8,8).
 
-3. PARAMETRYZACJA (Zapisz w polu 'details' i 'note'):
-   - 'details': Format "Serie x Powtórzenia @ Obciążenie". 
-     Dla siły używaj RPE (np. "@ RPE 8"). 
-     Dla początkujących używaj tempa (np. "Tempo 3010").
-   - 'note': Czas przerwy (Kluczowe!). 
-     Siła: 3-5 min. Hipertrofia: 60-90s. Wytrzymałość: <60s.
+3. **ZASADA "JUNK VOLUME" & FRAKTALNE ZLICZANIE:**
+   - **Limit Sesyjny:** Max 8-10 ciężkich serii na partię w jednej sesji. Jeśli więcej -> podziel na 2 dni (Góra/Dół lub PPL).
+   - **Liczenie Pośrednie:** 
+     - Wyciskanie Leżąc = 1 seria Klatki + 0.5 serii Tricepsa + 0.5 serii Przedniego Barku.
+     - Podciąganie = 1 seria Pleców + 0.5 serii Bicepsa.
+     - *Nie przepisuj 15 serii na bicepsy po dniu pleców!*
 
-4. BEZPIECZEŃSTWO (Hard Rules):
-   - Jeśli 'hypertension' (nadciśnienie): Brak ćwiczeń z głową w dół, brak izometrii >60s.
-   - Jeśli 'lower_back_pain' (ból pleców): Zamień Przysiady na Split Squat/Leg Press. Zamień Martwy Ciąg na Hip Thrust/Row.
+4. **MATEMATYKA TALERZY (Plate Math - Realizm):**
+   - Nie sugeruj ciężarów typu "31.7 kg".
+   - Używaj skoków: 1.25kg, 2.5kg, 5kg.
+   - Hantle: Skoki co 2.5kg (np. 15kg, 17.5kg, 20kg).
+   - Jeśli skok ciężaru jest niemożliwy (np. wznosy bokiem), zwiększaj powtórzenia lub skracaj przerwy (Density).
 
-FORMAT JSON:
+FORMAT JSON (Ściśle przestrzegaj):
 {
-  "title": string, // Np. "Hipertrofia Funkcjonalna - Faza 1"
-  "description": string, // Krótki opis strategii
+  "title": string, // Np. "Hipertrofia: Faza Akumulacji (DDP)"
+  "description": string, // Krótkie wyjaśnienie strategii, np. "Zastosowano Dynamic Double Progression. Priorytet na Klatkę."
   "mode": "workout",
   "schedule": [
     {
-      "dayName": string, // "Poniedziałek", "Wtorek"...
+      "dayName": string, // "Dzień 1 - Siła Góry", "Dzień 2 - Hipertrofia Dołu"...
       "summary": string, // Cel dnia
       "items": [
         {
-          "name": string, // Nazwa ćwiczenia
-          "details": string, // Np. "3 serie x 8-10 powt @ RPE 8"
-          "note": string, // Np. "Przerwa: 90s | Tempo: 3010"
-          "tips": string // Technika, np. "Trzymaj proste plecy"
+          "name": string, // "Przysiad ze sztangą (High-bar)"
+          "details": string, // "3 serie x 6-8 powt @ RPE 8" (Używaj RPE)
+          "note": string, // "Tempo 3010 | Przerwa 3 min"
+          "tips": string, // "Model: LP. Dodaj 2.5kg jeśli zrobisz 8 powt."
+          "videoUrl": string // Opcjonalnie URL do wideo (pozostaw puste lub null jeśli niepewne)
         }
       ]
     }
   ],
-  "progress": { ... } // Prognoza siły lub wagi
+  "progress": {
+    "metricName": "Siła Relatywna (Total)",
+    "unit": "kg",
+    "dataPoints": [] 
+  }
 }
 
-Wygeneruj plan na 7 dni (cały tydzień). Puste dni oznacz pustą listą items lub dniem "Rest Day".
+Wygeneruj plan na 14 DNI (Schedule musi mieć tablicę 14 elementów). Dni nietreningowe oznacz jako "Odpoczynek" w dayName.
+Tydzień 2 ma symulować progresję względem Tygodnia 1 (np. zwiększony ciężar lub liczba powtórzeń).
 ''';
   }
 }

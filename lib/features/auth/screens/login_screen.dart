@@ -4,6 +4,7 @@ import '../../../providers/progress_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
+import '../../../../core/utils/app_error_helper.dart';
 import '../../../providers/user_provider.dart';
 import 'register_screen.dart';
 
@@ -41,15 +42,34 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       
       if (mounted) {
-        final currentWeight = context.read<UserProvider>().weight;
-        await context.read<ProgressProvider>().loadProgress(fallbackWeight: currentWeight);
-        Navigator.of(context).pushReplacementNamed('/home');
+        final userProvider = context.read<UserProvider>();
+
+        // Ensure profile is synced (Best Effort)
+        if (userProvider.firebaseUser != null) {
+          try {
+            await userProvider.syncUserProfile(userProvider.firebaseUser!);
+          } catch (e) {
+            debugPrint('Sync warning: $e');
+          }
+        }
+        
+        if (userProvider.hasCompletedInitialSurvey) {
+           try {
+              final currentWeight = userProvider.weight;
+              await context.read<ProgressProvider>().loadProgress(fallbackWeight: currentWeight);
+           } catch (e) {
+              debugPrint('Progress load warning: $e');
+           }
+           Navigator.of(context).pushReplacementNamed('/home');
+        } else {
+           Navigator.of(context).pushReplacementNamed('/survey');
+        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString()),
+            content: Text(AppErrorHelper.getFriendlyErrorMessage(e.toString())),
             backgroundColor: Colors.red,
           ),
         );
@@ -70,16 +90,33 @@ class _LoginScreenState extends State<LoginScreen> {
       await userProvider.signInWithGoogle();
       
       if (mounted) {
-        final currentWeight = userProvider.weight;
-        await context.read<ProgressProvider>().loadProgress(fallbackWeight: currentWeight);
-        await Navigator.of(context).pushReplacementNamed('/home');
+        // Ensure profile is synced (Best Effort)
+        if (userProvider.firebaseUser != null) {
+          try {
+             await userProvider.syncUserProfile(userProvider.firebaseUser!);
+          } catch (e) {
+             debugPrint('Sync warning: $e');
+          }
+        }
+
+        if (userProvider.hasCompletedInitialSurvey) {
+          try {
+            final currentWeight = userProvider.weight;
+            await context.read<ProgressProvider>().loadProgress(fallbackWeight: currentWeight);
+          } catch (e) {
+            debugPrint('Progress load warning: $e');
+          }
+          if (mounted) await Navigator.of(context).pushReplacementNamed('/home');
+        } else {
+          if (mounted) await Navigator.of(context).pushReplacementNamed('/survey');
+        }
       }
     } catch (e) {
       debugPrint('🔴 Google Sign-In error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString()),
+            content: Text(AppErrorHelper.getFriendlyErrorMessage(e.toString())),
             backgroundColor: Colors.red,
           ),
         );
@@ -99,15 +136,32 @@ class _LoginScreenState extends State<LoginScreen> {
       await userProvider.signInWithFacebook();
       
       if (mounted) {
-        final currentWeight = userProvider.weight;
-        await context.read<ProgressProvider>().loadProgress(fallbackWeight: currentWeight);
-        Navigator.of(context).pushReplacementNamed('/home');
+        // Ensure profile is synced (Best Effort)
+        if (userProvider.firebaseUser != null) {
+          try {
+            await userProvider.syncUserProfile(userProvider.firebaseUser!);
+          } catch (e) {
+            debugPrint('Sync warning: $e');
+          }
+        }
+
+        if (userProvider.hasCompletedInitialSurvey) {
+          try {
+            final currentWeight = userProvider.weight;
+            await context.read<ProgressProvider>().loadProgress(fallbackWeight: currentWeight);
+          } catch (e) {
+            debugPrint('Progress load warning: $e');
+          }
+          Navigator.of(context).pushReplacementNamed('/home');
+        } else {
+          Navigator.of(context).pushReplacementNamed('/survey');
+        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString()),
+            content: Text(AppErrorHelper.getFriendlyErrorMessage(e.toString())),
             backgroundColor: Colors.red,
           ),
         );
@@ -208,7 +262,7 @@ class _LoginScreenState extends State<LoginScreen> {
             
             // Login Card
             Transform.translate(
-              offset: const Offset(0, -60),
+              offset: const Offset(0, -20),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Container(

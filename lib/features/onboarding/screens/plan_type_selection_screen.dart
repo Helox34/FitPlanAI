@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/models/models.dart';
+import '../../../core/widgets/worm_loader.dart';
 import 'process_screen.dart';
 
 /// Screen for selecting plan type (Workout or Diet)
@@ -44,9 +45,9 @@ class _PlanTypeSelectionScreenState extends State<PlanTypeSelectionScreen> {
   Widget build(BuildContext context) {
     // If preselected, show loading while navigating
     if (widget.preselectedMode != null) {
-      return const Scaffold(
+      return Scaffold(
         body: Center(
-          child: CircularProgressIndicator(),
+          child: WormLoader(size: 60),
         ),
       );
     }

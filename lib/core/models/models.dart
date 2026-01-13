@@ -46,12 +46,14 @@ class PlanItem {
   final String details; // Sets/Reps or Grams/Calories
   final String? note;
   final String? tips; // Technical description
+  final String? videoUrl; // URL to exercise video
 
   PlanItem({
     required this.name,
     required this.details,
     this.note,
     this.tips,
+    this.videoUrl,
   });
 
   Map<String, dynamic> toJson() => {
@@ -59,13 +61,15 @@ class PlanItem {
     'details': details,
     if (note != null) 'note': note,
     if (tips != null) 'tips': tips,
+    if (videoUrl != null) 'videoUrl': videoUrl,
   };
 
   factory PlanItem.fromJson(Map<String, dynamic> json) => PlanItem(
-    name: json['name'],
-    details: json['details'],
+    name: json['name'] ?? 'Bez nazwy',
+    details: json['details'] ?? '',
     note: json['note'],
     tips: json['tips'],
+    videoUrl: json['videoUrl'],
   );
 }
 
@@ -88,8 +92,8 @@ class PlanDay {
   };
 
   factory PlanDay.fromJson(Map<String, dynamic> json) => PlanDay(
-    dayName: json['dayName'],
-    items: (json['items'] as List).map((i) => PlanItem.fromJson(i)).toList(),
+    dayName: json['dayName'] ?? 'Dzień',
+    items: (json['items'] as List?)?.map((i) => PlanItem.fromJson(i)).toList() ?? [],
     summary: json['summary'],
   );
 }
@@ -113,9 +117,9 @@ class ProgressPoint {
   };
 
   factory ProgressPoint.fromJson(Map<String, dynamic> json) => ProgressPoint(
-    week: json['week'],
-    value: (json['value'] as num).toDouble(),
-    type: json['type'],
+    week: json['week'] ?? 0,
+    value: (json['value'] as num?)?.toDouble() ?? 0.0,
+    type: json['type'] ?? 'projected',
   );
 }
 
@@ -138,11 +142,11 @@ class ProgressData {
   };
 
   factory ProgressData.fromJson(Map<String, dynamic> json) => ProgressData(
-    metricName: json['metricName'],
-    unit: json['unit'],
-    dataPoints: (json['dataPoints'] as List)
-        .map((p) => ProgressPoint.fromJson(p))
-        .toList(),
+    metricName: json['metricName'] ?? 'Postęp',
+    unit: json['unit'] ?? '',
+    dataPoints: (json['dataPoints'] as List?)
+        ?.map((p) => ProgressPoint.fromJson(p))
+        .toList() ?? [],
   );
 }
 
@@ -171,10 +175,10 @@ class GeneratedPlan {
   };
 
   factory GeneratedPlan.fromJson(Map<String, dynamic> json) => GeneratedPlan(
-    title: json['title'],
-    description: json['description'],
+    title: json['title'] ?? 'Twój Plan',
+    description: json['description'] ?? '',
     mode: json['mode'] == 'workout' ? CreatorMode.WORKOUT : CreatorMode.DIET,
-    schedule: (json['schedule'] as List).map((d) => PlanDay.fromJson(d)).toList(),
+    schedule: (json['schedule'] as List?)?.map((d) => PlanDay.fromJson(d)).toList() ?? [],
     progress: json['progress'] != null ? ProgressData.fromJson(json['progress']) : null,
   );
 }

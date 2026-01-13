@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
+import '../../../../core/utils/app_error_helper.dart';
 import '../../../providers/user_provider.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -48,17 +49,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
       // 2. Update Profile Name (if possible, or save to firestore)
       await userProvider.updateNickname(_nameController.text.trim());
       
-      // 3. Mark survey as needed (or check if new user needs it)
-      // Usually new users need survey.
-      
+      // 3. Mark survey as needed
+      // Notify about verification but let them proceed
       if (mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Konto utworzone! Wysłano link weryfikacyjny na email. Zweryfikuj go, aby generować plany.'),
+            duration: Duration(seconds: 5),
+          ),
+        );
         Navigator.of(context).pushNamedAndRemoveUntil('/survey', (route) => false);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString()),
+            content: Text(AppErrorHelper.getFriendlyErrorMessage(e.toString())),
             backgroundColor: Colors.red,
           ),
         );
