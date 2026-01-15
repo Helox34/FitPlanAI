@@ -20,16 +20,19 @@ class LiveRestView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          // "Czas na odpoczynek" header (green)
           Text(
-            'PRZERWA',
+            'Czas na odpoczynek',
             style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              letterSpacing: 2,
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: AppColors.primary, // Green color like in the image
+              letterSpacing: 1,
             ),
           ),
           const SizedBox(height: 40),
+          
+          // Timer circle
           Stack(
             alignment: Alignment.center,
             children: [
@@ -38,64 +41,71 @@ class LiveRestView extends StatelessWidget {
                 height: 200,
                 child: WormLoader(
                   size: 200,
-                  color: AppColors.primary,
+                  color: AppColors.primary.withOpacity(0.3),
                 ),
               ),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _formatTime(remainingSeconds),
-                    style: const TextStyle(
-                      fontSize: 48,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const Text(
-                    'do końca',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white70,
-                    ),
-                  ),
-                ],
+              // Large timer text
+              Text(
+                _formatTime(remainingSeconds),
+                style: const TextStyle(
+                  fontSize: 56,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
             ],
           ),
+          
           const SizedBox(height: 40),
+          
+          // "Następnie:" label
           Text(
             'Następnie:',
             style: TextStyle(
-              fontSize: 16,
-              color: Colors.white70,
+              fontSize: 14,
+              color: Colors.white60,
+              fontWeight: FontWeight.w500,
             ),
           ),
           const SizedBox(height: 8),
+          
+          // Next exercise name
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Text(
               nextExerciseName,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
                 color: Colors.white,
               ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          const SizedBox(height: 40),
+          
+          const SizedBox(height: 60),
+          
+          // "Pomiń przerwę" button
           ElevatedButton(
             onPressed: onSkip,
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              backgroundColor: Colors.white,
+              foregroundColor: const Color(0xFF0F172A), // Dark blue text
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              elevation: 0,
+            ),
+            child: const Text(
+              'Pomiń przerwę',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
               ),
             ),
-            child: const Text('POMIŃ PRZERWĘ'),
           ),
         ],
       ),

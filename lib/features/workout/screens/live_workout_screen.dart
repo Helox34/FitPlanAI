@@ -97,6 +97,34 @@ class _LiveWorkoutScreenState extends State<LiveWorkoutScreen> {
               
               final exercise = provider.currentExercise;
               
+              // Safety check - if no exercise loaded, show error and go back
+              if (exercise == null) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Nie znaleziono ćwiczenia. Sprawdź swój plan treningowy.'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    Navigator.of(context).pop();
+                  }
+                });
+                return const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      WormLoader(size: 50),
+                      SizedBox(height: 16),
+                      Text(
+                        'Błąd ładowania treningu...',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              
               return Column(
                 children: [
                    // Progress Bar
@@ -134,11 +162,11 @@ class _LiveWorkoutScreenState extends State<LiveWorkoutScreen> {
                     child: provider.isResting
                         ? LiveRestView(
                             remainingSeconds: provider.remainingRestSeconds,
-                            nextExerciseName: provider.nextExercise?.name ?? provider.currentExercise?.name ?? 'Koniec',  
+                            nextExerciseName: provider.nextExercise?.name ?? exercise.name ?? 'Koniec',  
                             onSkip: provider.skipRest,
                           )
                         : LiveExerciseView(
-                            exercise: exercise!,
+                            exercise: exercise,
                             setNumber: provider.currentSetNumber,
                             totalSets: provider.totalSetsForCurrentExercise,
                             onComplete: () {

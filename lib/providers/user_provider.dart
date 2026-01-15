@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -8,6 +9,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../core/models/models.dart';
 import '../models/subscription_plan.dart';
 import '../services/notification_service.dart';
+import '../services/achievement_service.dart';
 
 /// Provider for managing user profile and settings
 class UserProvider with ChangeNotifier {
@@ -54,9 +56,58 @@ class UserProvider with ChangeNotifier {
   // Stretch fields (loaded directly from prefs)
   int _streakCurrent = 0;
   int _streakBest = 0;
+  int _totalWorkouts = 0;
+  List<Achievement> _achievements = [];
   
   int get streakCurrent => _streakCurrent;
   int get streakBest => _streakBest;
+  int get totalWorkouts => _totalWorkouts;
+  List<Achievement> get achievements => _achievements;
+  
+  // Goal Timeline fields (3.1 - Fitify feature)
+  String? _fitnessGoal; // "lose_weight", "build_muscle", "get_fit"
+  double? _goalWeight; // Target weight (if applicable)
+  DateTime? _goalDeadline; // User-set or AI-calculated deadline
+  DateTime? _goalStartDate; // When user started
+  
+  String? get fitnessGoal => _fitnessGoal;
+  double? get goalWeight => _goalWeight;
+  DateTime? get goalDeadline => _goalDeadline;
+  DateTime? get goalStartDate => _goalStartDate;
+  
+  // Calculated goal progress
+  int? get daysRemainingToGoal {
+    if (_goalDeadline == null) return null;
+    final remaining = _goalDeadline!.difference(DateTime.now()).inDays;
+    return remaining < 0 ? 0 : remaining;
+  }
+  
+  double? get goalProgressPercent {
+    if (_goalStartDate == null || _goalDeadline == null) return null;
+    final totalDays = _goalDeadline!.difference(_goalStartDate!).inDays;
+    if (totalDays <= 0) return 1.0;
+    final daysPassed = DateTime.now().difference(_goalStartDate!).inDays;
+    return (daysPassed / totalDays).clamp(0.0, 1.0);
+  }
+
+  // Method to update goal (for 3.1 Goal Timeline)
+  Future<void> updateGoal({
+    String? goal,
+    double? targetWeight,
+    DateTime? deadline,
+  }) async {
+    if (goal != null) _fitnessGoal = goal;
+    if (targetWeight != null) _goalWeight = targetWeight;
+    if (deadline != null) {
+      _goalDeadline = deadline;
+      _goalStartDate ??= DateTime.now(); // Set start if first time
+    }
+    
+    // In real app, save to Firestore here
+    // await _updateFirestore({...});
+    
+    notifyListeners();
+  }
   
   bool get hasCompletedInitialSurvey => _surveyCompleted;
 
@@ -74,37 +125,50 @@ class UserProvider with ChangeNotifier {
       
       final prefs = await SharedPreferences.getInstance();
       
-      _age = prefs.getInt('user_age');
-      _weight = prefs.getDouble('user_weight');
-      _height = prefs.getDouble('user_height');
-      _nickname = prefs.getString('user_nickname');
-      _avatarUrl = prefs.getString('user_avatar_url');
-      _currentLanguage = prefs.getString('user_language') ?? 'pl';
-      _currentThemeMode = prefs.getString('user_theme') ?? 'light';
+      _currentLanguage = prefs.getString('language') ?? 'pl';
+      _currentThemeMode = prefs.getString('theme') ?? 'light';
+      _age = prefs.getInt('age');
+      _weight = prefs.getDouble('weight');
+      _height = prefs.getDouble('height');
+      _nickname = prefs.getString('nickname');
+      _avatarUrl = prefs.getString('avatar_url');
+      _surveyCompleted = prefs.getBool('survey_completed') ?? false;
       
-      // Load Notifications
+      // Load Streak
+      _streakCurrent = prefs.getInt('streak_current') ?? 0;
+      _streakBest = prefs.getInt('streak_best') ?? 0;
+      
+      // Load Total Workouts and Achievements
+      _totalWorkouts = prefs.getInt('total_workouts') ?? 0;
+      final achievementsJson = prefs.getString('achievements');
+      if (achievementsJson != null) {
+        try {
+          final List<dynamic> decoded = jsonDecode(achievementsJson);
+          _achievements = decoded.map((a) => Achievement.fromJson(a)).toList();
+        } catch (e) {
+          debugPrint('Error loading achievements: $e');
+          _achievements = [];
+        }
+      }
+      
+      // Load Subscription Data
+      final tierString = prefs.getString('subscription_tier');
+      _subscriptionTier = tierString != null 
+          ? SubscriptionTier.values.firstWhere(
+              (e) => e.toString() == tierString,
+              orElse: () => SubscriptionTier.free,
+            )
+          : SubscriptionTier.free;
+      final expiryString = prefs.getString('subscription_expiry');
+      if (expiryString != null) {
+        _subscriptionExpiryDate = DateTime.parse(expiryString);
+      }
+      
+      // Notification Settings
       _notifyApp = prefs.getBool('notify_app') ?? true;
       _notifyPlan = prefs.getBool('notify_plan') ?? false;
       _notifyDiet = prefs.getBool('notify_diet') ?? true;
       _notifyWater = prefs.getBool('notify_water') ?? true;
-      
-      _streakCurrent = prefs.getInt('streak_current') ?? 0;
-      _streakBest = prefs.getInt('streak_best') ?? 0;
-      
-      // Load Subscription
-      final tierIndex = prefs.getInt('subscription_tier') ?? 0;
-      _subscriptionTier = SubscriptionTier.values[tierIndex];
-      final expiryMillis = prefs.getInt('subscription_expiry');
-      if (expiryMillis != null) {
-        _subscriptionExpiryDate = DateTime.fromMillisecondsSinceEpoch(expiryMillis);
-      }
-      
-      // Load survey completed (fallback to checking fields)
-      if (prefs.containsKey('survey_completed')) {
-        _surveyCompleted = prefs.getBool('survey_completed') ?? false;
-      } else {
-        _surveyCompleted = (_age != null && _weight != null && _height != null);
-      }
       
       notifyListeners();
     } catch (e) {
@@ -444,28 +508,68 @@ class UserProvider with ChangeNotifier {
     
     int current = prefs.getInt('streak_current') ?? 0;
     int best = prefs.getInt('streak_best') ?? 0;
+    int totalWorkouts = prefs.getInt('total_workouts') ?? 0;
     
     current++;
     if (current > best) {
       best = current;
     }
+    totalWorkouts++;
     
     await prefs.setInt('streak_current', current);
     await prefs.setInt('streak_best', best);
+    await prefs.setInt('total_workouts', totalWorkouts);
     
     // Also save last workout date
     await prefs.setString('last_workout_date', now.toIso8601String());
     
-    // Sync with Firestore (Streak)
+    // Sync with Firestore (Streak)  
     await _updateFirestore({
       'streak': current,
       'bestStreak': best,
+      'totalWorkouts': totalWorkouts,
       'lastWorkoutDate': now.toIso8601String(),
     });
 
     // Update local state
     _streakCurrent = current;
     _streakBest = best;
+    _totalWorkouts = totalWorkouts;
+    
+    // CHECK AND UNLOCK ACHIEVEMENTS
+    final achievementService = AchievementService();
+    final newAchievements = achievementService.checkAndUnlockAchievements(
+      currentStreak: current,
+      totalWorkouts: totalWorkouts,
+      currentAchievements: _achievements,
+      lastWorkoutDate: lastDateStr != null ? DateTime.parse(lastDateStr) : null,
+    );
+    
+    if (newAchievements.isNotEmpty) {
+      // Merge new achievements with existing ones
+      final allAchievements = [..._achievements];
+      for (var newAch in newAchievements) {
+        // Replace or add
+        final index = allAchievements.indexWhere((a) => a.id == newAch.id);
+        if (index >= 0) {
+          allAchievements[index] = newAch;
+        } else {
+          allAchievements.add(newAch);
+        }
+      }
+      _achievements = allAchievements;
+      
+      // Save to SharedPreferences
+      final achievementsJson = jsonEncode(_achievements.map((a) => a.toJson()).toList());
+      await prefs.setString('achievements', achievementsJson);
+      
+      // Sync to Firestore
+      await _updateFirestore({
+        'achievements': _achievements.map((a) => a.toJson()).toList(),
+      });
+      
+      debugPrint('🎉 NEW ACHIEVEMENTS UNLOCKED: ${newAchievements.length}');
+    }
     
     notifyListeners();
   }

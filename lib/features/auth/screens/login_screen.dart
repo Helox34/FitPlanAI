@@ -36,34 +36,72 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
     
     try {
+      // Sign in with timeout
       await context.read<UserProvider>().signIn(
         _emailController.text.trim(),
         _passwordController.text,
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw 'Przekroczono czas logowania. Sprawdź połączenie internetowe.';
+        },
       );
       
-      if (mounted) {
-        final userProvider = context.read<UserProvider>();
+      if (!mounted) return;
+      
+      final userProvider = context.read<UserProvider>();
+      bool syncSuccess = true;
 
-        // Ensure profile is synced (Best Effort)
-        if (userProvider.firebaseUser != null) {
-          try {
-            await userProvider.syncUserProfile(userProvider.firebaseUser!);
-          } catch (e) {
-            debugPrint('Sync warning: $e');
-          }
+      // Ensure profile is synced (Best Effort with timeout)
+      if (userProvider.firebaseUser != null) {
+        try {
+          await userProvider.syncUserProfile(userProvider.firebaseUser!).timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              debugPrint('⚠️ Profile sync timeout - continuing anyway');
+              syncSuccess = false;
+            },
+          );
+        } catch (e) {
+          debugPrint('⚠️ Sync warning: $e');
+          syncSuccess = false;
+        }
+      }
+      
+      if (!mounted) return;
+      
+      // Load progress with timeout (only if survey completed)
+      if (userProvider.hasCompletedInitialSurvey) {
+        try {
+          final currentWeight = userProvider.weight;
+          await context.read<ProgressProvider>().loadProgress(fallbackWeight: currentWeight).timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              debugPrint('⚠️ Progress load timeout - continuing anyway');
+            },
+          );
+        } catch (e) {
+          debugPrint('⚠️ Progress load warning: $e');
         }
         
-        if (userProvider.hasCompletedInitialSurvey) {
-           try {
-              final currentWeight = userProvider.weight;
-              await context.read<ProgressProvider>().loadProgress(fallbackWeight: currentWeight);
-           } catch (e) {
-              debugPrint('Progress load warning: $e');
-           }
-           Navigator.of(context).pushReplacementNamed('/home');
-        } else {
-           Navigator.of(context).pushReplacementNamed('/survey');
+        if (!mounted) return;
+        
+        // Navigate even if sync failed
+        await Navigator.of(context).pushReplacementNamed('/home');
+        
+        // Show warning if sync failed
+        if (!syncSuccess && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Zalogowano, ale nie udało się zsynchronizować wszystkich danych.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
+            ),
+          );
         }
+      } else {
+        if (!mounted) return;
+        await Navigator.of(context).pushReplacementNamed('/survey');
       }
     } catch (e) {
       if (mounted) {
@@ -87,29 +125,63 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       debugPrint('🔵 Starting Google Sign-In...');
       final userProvider = context.read<UserProvider>();
-      await userProvider.signInWithGoogle();
+      await userProvider.signInWithGoogle().timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw 'Przekroczono czas logowania przez Google.';
+        },
+      );
       
-      if (mounted) {
-        // Ensure profile is synced (Best Effort)
-        if (userProvider.firebaseUser != null) {
-          try {
-             await userProvider.syncUserProfile(userProvider.firebaseUser!);
-          } catch (e) {
-             debugPrint('Sync warning: $e');
-          }
+      if (!mounted) return;
+      
+      bool syncSuccess = true;
+      
+      // Ensure profile is synced (Best Effort with timeout)
+      if (userProvider.firebaseUser != null) {
+        try {
+          await userProvider.syncUserProfile(userProvider.firebaseUser!).timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              debugPrint('⚠️ Profile sync timeout - continuing anyway');
+              syncSuccess = false;
+            },
+          );
+        } catch (e) {
+          debugPrint('⚠️ Sync warning: $e');
+          syncSuccess = false;
         }
+      }
 
-        if (userProvider.hasCompletedInitialSurvey) {
-          try {
-            final currentWeight = userProvider.weight;
-            await context.read<ProgressProvider>().loadProgress(fallbackWeight: currentWeight);
-          } catch (e) {
-            debugPrint('Progress load warning: $e');
-          }
-          if (mounted) await Navigator.of(context).pushReplacementNamed('/home');
-        } else {
-          if (mounted) await Navigator.of(context).pushReplacementNamed('/survey');
+      if (!mounted) return;
+      
+      if (userProvider.hasCompletedInitialSurvey) {
+        try {
+          final currentWeight = userProvider.weight;
+          await context.read<ProgressProvider>().loadProgress(fallbackWeight: currentWeight).timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              debugPrint('⚠️ Progress load timeout - continuing anyway');
+            },
+          );
+        } catch (e) {
+          debugPrint('⚠️ Progress load warning: $e');
         }
+        
+        if (!mounted) return;
+        await Navigator.of(context).pushReplacementNamed('/home');
+        
+        if (!syncSuccess && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Zalogowano, ale nie udało się zsynchronizować wszystkich danych.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      } else {
+        if (!mounted) return;
+        await Navigator.of(context).pushReplacementNamed('/survey');
       }
     } catch (e) {
       debugPrint('🔴 Google Sign-In error: $e');
@@ -133,29 +205,63 @@ class _LoginScreenState extends State<LoginScreen> {
     
     try {
       final userProvider = context.read<UserProvider>();
-      await userProvider.signInWithFacebook();
+      await userProvider.signInWithFacebook().timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw 'Przekroczono czas logowania przez Facebook.';
+        },
+      );
       
-      if (mounted) {
-        // Ensure profile is synced (Best Effort)
-        if (userProvider.firebaseUser != null) {
-          try {
-            await userProvider.syncUserProfile(userProvider.firebaseUser!);
-          } catch (e) {
-            debugPrint('Sync warning: $e');
-          }
+      if (!mounted) return;
+      
+      bool syncSuccess = true;
+      
+      // Ensure profile is synced (Best Effort with timeout)
+      if (userProvider.firebaseUser != null) {
+        try {
+          await userProvider.syncUserProfile(userProvider.firebaseUser!).timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              debugPrint('⚠️ Profile sync timeout - continuing anyway');
+              syncSuccess = false;
+            },
+          );
+        } catch (e) {
+          debugPrint('⚠️ Sync warning: $e');
+          syncSuccess = false;
         }
+      }
 
-        if (userProvider.hasCompletedInitialSurvey) {
-          try {
-            final currentWeight = userProvider.weight;
-            await context.read<ProgressProvider>().loadProgress(fallbackWeight: currentWeight);
-          } catch (e) {
-            debugPrint('Progress load warning: $e');
-          }
-          Navigator.of(context).pushReplacementNamed('/home');
-        } else {
-          Navigator.of(context).pushReplacementNamed('/survey');
+      if (!mounted) return;
+
+      if (userProvider.hasCompletedInitialSurvey) {
+        try {
+          final currentWeight = userProvider.weight;
+          await context.read<ProgressProvider>().loadProgress(fallbackWeight: currentWeight).timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              debugPrint('⚠️ Progress load timeout - continuing anyway');
+            },
+          );
+        } catch (e) {
+          debugPrint('⚠️ Progress load warning: $e');
         }
+        
+        if (!mounted) return;
+        await Navigator.of(context).pushReplacementNamed('/home');
+        
+        if (!syncSuccess && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Zalogowano, ale nie udało się zsynchronizować wszystkich danych.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      } else {
+        if (!mounted) return;
+        await Navigator.of(context).pushReplacementNamed('/survey');
       }
     } catch (e) {
       if (mounted) {

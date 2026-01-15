@@ -1367,11 +1367,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
             ),
             onTap: () async {
-              await NotificationService().showTestNotification();
-              if (mounted) {
-                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Wysłano testowe powiadomienie! Sprawdź pasek powiadomień.')),
-                );
+              try {
+                await NotificationService().showTestNotification();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('✅ Wysłano testowe powiadomienie! Sprawdź pasek powiadomień.'),
+                      backgroundColor: AppColors.success,
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('❌ Błąd: $e'),
+                      backgroundColor: AppColors.error,
+                      duration: const Duration(seconds: 5),
+                    ),
+                  );
+                }
               }
             },
             contentPadding: const EdgeInsets.symmetric(horizontal: 20),

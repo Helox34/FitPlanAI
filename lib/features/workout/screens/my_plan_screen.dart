@@ -12,6 +12,9 @@ import '../widgets/day_selector.dart';
 import '../../../providers/live_workout_provider.dart';
 import '../../../providers/user_provider.dart';
 import 'live_workout_screen.dart';
+import '../../../services/achievement_service.dart';
+import '../widgets/exercise_modification_dialog.dart';
+import '../../home/widgets/goal_timeline_card.dart'; // Fitify Feature 3.1
 
 import '../../../core/widgets/worm_loader.dart';
 
@@ -230,45 +233,192 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
           // I added `incrementStreak` but did I add getters? 
           // I will assume I need to add getters to UserProvider.
              
+          final achievementService = AchievementService();
+          final nextAchievement = achievementService.getNextAchievement(
+            currentStreak: userProvider.streakCurrent,
+            totalWorkouts: userProvider.totalWorkouts,
+            currentAchievements: userProvider.achievements,
+          );
+          final progress = achievementService.getProgressToNextAchievement(
+            currentStreak: userProvider.streakCurrent,
+            totalWorkouts: userProvider.totalWorkouts,
+            currentAchievements: userProvider.achievements,
+          );
+          final unlockedCount = userProvider.achievements.where((a) => a.isUnlocked).length;
+          final totalCount = AchievementService.allAchievements.length;
+          
           return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-            // "Achievements" Mockup Section
+            // --- GOAL TIMELINE (Fitify Feature 3.1) ---
+            const GoalTimelineCard(),
+            const SizedBox(height: 16),
+            // -----------------------------------------
+            
+            // Achievement Section - REAL IMPLEMENTATION
             Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(16),
             margin: const EdgeInsets.only(bottom: 16),
             decoration: BoxDecoration(
                 color: colorScheme.surface,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: colorScheme.outline.withOpacity(0.2)),
-            ),
-            child: Row(
-                children: [
-                const Icon(Icons.emoji_events, color: Colors.amber, size: 24),
-                const SizedBox(width: 12),
-                Expanded(
-                    child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                         Text(
-                        'Twoje Osiągnięcia',
-                        style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.onSurface,
-                        ),
-                        ),
-                        Text(
-                        'Dni z rzędu: ${userProvider.streakCurrent} 🔥 | Odblokowano: ${userProvider.streakCurrent}/30',
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: colorScheme.onSurfaceVariant,
-                        ),
-                        ),
-                    ],
-                    ),
-                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
                 ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    const Icon(Icons.emoji_events, color: Colors.amber, size: 28),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Twoje Osiągnięcia',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.onSurface,
+                            ),
+                          ),
+                          Text(
+                            'Odblokowano: $unlockedCount/$totalCount • Passa: ${userProvider.streakCurrent} dni 🔥',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Progress to next achievement
+                if (nextAchievement != null) ...[
+                  Text(
+                    'Następne osiągnięcie:',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Text(
+                        AchievementService.getIconEmoji(nextAchievement.icon),
+                        style: const TextStyle(fontSize: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              nextAchievement.title,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: colorScheme.onSurface,
+                              ),
+                            ),
+                            Text(
+                              nextAchievement.description,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: LinearProgressIndicator(
+                                value: progress,
+                                backgroundColor: colorScheme.outlineVariant,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  AppColors.primary,
+                                ),
+                                minHeight: 6,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                
+                // Last 3 unlocked achievements
+                if (userProvider.achievements.where((a) => a.isUnlocked).isNotEmpty) ...[
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Ostatnio odblokowane:',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: userProvider.achievements
+                        .where((a) => a.isUnlocked)
+                        .toList()
+                        .reversed
+                        .take(3)
+                        .map((achievement) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: AppColors.primary.withOpacity(0.3),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    AchievementService.getIconEmoji(achievement.icon),
+                                    style: const TextStyle(fontSize: 16),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    achievement.title,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: colorScheme.onSurface,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ))
+                        .toList(),
+                  ),
+                ],
+              ],
             ),
             ),
             
@@ -383,14 +533,84 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
         ],
         
         ...planDay.items.asMap().entries.map((entry) {
-          final index = entry.key;
+          final exerciseIndex = entry.key;
           final item = entry.value;
-          return ExerciseCard(
-            index: index + 1,
-            exercise: item,
+          
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              // Exercise Card
+              ExerciseCard(
+                index: exerciseIndex + 1,
+                exercise: item,
+              ),
+              
+              // Edit Button (small, right-aligned)
+              Transform.translate(
+                offset: const Offset(0, -8), // Overlap card slightly
+                child: Container(
+                  margin: const EdgeInsets.only(right: 16, bottom: 8),
+                  child: InkWell(
+                    onTap: () => _showExerciseModificationDialog(
+                      exercise: item,
+                      dayIndex: _selectedDayIndex,
+                      exerciseIndex: exerciseIndex,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: AppColors.primary.withOpacity(0.5),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.edit_note,
+                            size: 16,
+                            color: AppColors.primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Zmień',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           );
         }).toList(),
       ],
+    );
+  }
+  
+  void _showExerciseModificationDialog({
+    required PlanItem exercise,
+    required int dayIndex,
+    required int exerciseIndex,
+  }) {
+    showDialog(
+      context: context,
+      builder: (context) => ExerciseModificationDialog(
+        exercise: exercise,
+        dayIndex: dayIndex,
+        exerciseIndex: exerciseIndex,
+      ),
     );
   }
 }

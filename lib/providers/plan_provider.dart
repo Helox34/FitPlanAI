@@ -136,6 +136,29 @@ class PlanProvider with ChangeNotifier {
       // Save the plan
       if (mode == CreatorMode.WORKOUT) {
         _workoutPlan = plan;
+        
+        // --- VALIDATION LOGGING (Volume Fix) ---
+        for (var day in plan.schedule) {
+          int dailySets = 0;
+          if (day.dayName.toLowerCase().contains('odpoczynek')) continue;
+          
+          for (var item in day.items) {
+             // Extract sets count from "details" string (e.g. "3 serie x 10 powt")
+             // Simple naive parsing for validation logging
+             if (item.details.contains('seri')) {
+               final parts = item.details.split(' ');
+               for (var part in parts) {
+                 if (int.tryParse(part) != null) {
+                   dailySets += int.parse(part);
+                   break; // Assume first number is sets
+                 }
+               }
+             }
+          }
+          debugPrint('📊 VERIFICATION for ${day.dayName}: Found ~$dailySets sets (Goal: 12-35)');
+        }
+        // ---------------------------------------
+        
       } else {
         _dietPlan = plan;
       }
@@ -202,6 +225,47 @@ class PlanProvider with ChangeNotifier {
       return false;
     }
   }
+  
+  /// Replace a single exercise in the workout plan
+  Future<void> replaceExercise({
+    required int dayIndex,
+    required int exerciseIndex,
+    required PlanItem newExercise,
+  }) async {
+    if (_workoutPlan == null) {
+      debugPrint('❌ Cannot replace exercise: no workout plan loaded');
+      return;
+    }
+    
+    if (dayIndex < 0 || dayIndex >= _workoutPlan!.schedule.length) {
+      debugPrint('❌ Invalid dayIndex: $dayIndex');
+      return;
+    }
+    
+    final day = _workoutPlan!.schedule[dayIndex];
+    if (exerciseIndex < 0 || exerciseIndex >= day.items.length) {
+      debugPrint('❌ Invalid exerciseIndex: $exerciseIndex');
+      return;
+    }
+    
+    // Replace the exercise
+    day.items[exerciseIndex] = newExercise;
+    
+    // Update the plan
+    notifyListeners();
+    
+    // Save to storage
+    try {
+      await PlanService.savePlan(_workoutPlan!);
+      await _savePlanToFirestore(_workoutPlan!);
+      debugPrint('✅ Exercise replaced and saved');
+    } catch (e) {
+      debugPrint('❌ Error saving modified plan: $e');
+    }
+  }
+  
+  /// Get current plan based on mode
+  GeneratedPlan? get currentPlan => _workoutPlan;  // Default to workout
   
   /// Delete a plan
   Future<void> deletePlan(CreatorMode mode) async {

@@ -142,6 +142,192 @@ Zwróć JSON w formacie:
     }
   }
   
+  /// Modify single exercise with AI suggestions based on user context
+  Future<List<PlanItem>> modifyExercise({
+    required PlanItem currentExercise,
+    required String userRequest,
+    required Map<String, dynamic> userContext,
+  }) async {
+    try {
+      print('🔄 Requesting exercise modification from AI...');
+      print('📝 User request: $userRequest');
+      print('👤 User context keys: ${userContext.keys.toList()}');
+      
+      final systemPrompt = '''
+Jesteś ekspertem inżynierii treningowej (S&C Coach) w aplikacji FitPlan AI.
+Twoim zadaniem jest zaproponować 2-3 BEZPIECZNE alternatywne ćwiczenia, które:
+1. Są zgodne z zasadami naukowego treningu (Volume Landmarks, Progressive Overload)
+2. Uwzględniają pełny kontekst użytkownika (zdrowie, kontuzje, sprzęt)
+3. Zachowują spójność z aktualnym planem treningowym
+
+KONTEKST UŻYTKOWNIKA:
+${jsonEncode(userContext)}
+
+OBECNE ĆWICZENIE DO ZAMIANY:
+Nazwa: ${currentExercise.name}
+Detale: ${currentExercise.details}
+${currentExercise.tips != null ? 'Wskazówki: ${currentExercise.tips}' : ''}
+
+PROŚBA UŻYTKOWNIKA: "$userRequest"
+
+═══════════════════════════════════════════════════════════════
+FUNDAMENTY LOGIKI (CRITICAL RULES - BEZPIECZEŃSTWO I NAUKA)
+═══════════════════════════════════════════════════════════════
+
+1. **BEZPIECZEŃSTWO (Priorytet #1):**
+   - NIE proponuj ćwiczeń obciążających części ciała z 'injuries'
+   - NIE proponuj ćwiczeń sprzecznych z 'limitations'
+   - Jeśli health_conditions zawiera choroby (cukrzyca, astma), wybieraj ćwiczenia niskointensywne
+   - Przy kontuzjach ZAWSZE preferuj izolację nad ćwiczenia złożone
+
+2. **VOLUME LANDMARKS (Dr. Mike Israetel):**
+   Proponowane ćwiczenia muszą mieścić się w odpowiednich ramach objętości:
+   - **Klatka**: MEV: 8, MAV: 12-16, MRV: 22 serie/tydzień
+   - **Plecy**: MEV: 10, MAV: 14-22, MRV: 25
+   - **Nogi (Czworogłowe)**: MEV: 8, MAV: 12-18, MRV: 20
+   - **Pośladki/Dwugłowe**: MEV: 6, MAV: 10-16
+   - **Barki**: MEV: 8, MAV: 16-22
+   - **Ramiona**: MEV: 8, MAV: 12-20
+   
+   *Początkujący (\u003c1 rok): trzymaj się MEV. Zaawansowani: celuj w MAV.*
+
+3. **PROGRESSIVE OVERLOAD (Model Progresji):**
+   - **Początkujący**: Linear Progression - stałe 3x5 lub 3x8, +2.5kg/+5kg co sesję
+   - **Średniozaawansowani**: Dynamic Double Progression - zakres powt (8-12), najpierw reps, potem waga
+   - W alternatywach używaj **tego samego modelu** co obecne ćwiczenie (jeśli możliwe)
+
+4. **PLATE MATH (Realizm Obciążeń):**
+   - NIE sugeruj ciężarów jak "31.7 kg" lub "17.3 kg"
+   - Używaj skoków: 1.25kg, 2.5kg, 5kg
+   - Hantle: co 2.5kg (15kg, 17.5kg, 20kg)
+   - Jeśli nie można zwiększyć ciężaru → zwiększ powtórzenia lub zmniejsz przerwy
+
+5. **JUNK VOLUME (Unikaj Śmieciowej Objętości):**
+   - Max 8-10 ciężkich serii na partię w jednej sesji
+   - Uwzględniaj liczenie pośrednie (Wyciskanie = Klatka + 0.5 Triceps + 0.5 Bark Przedni)
+   - Jeśli zamiana zwiększa objętość \u003e MRV → OSTRZEŻ użytkownika
+
+6. **SPRZĘT I DOSTĘPNOŚĆ:**
+   - 'equipment' pokazuje co user ma dostępne
+   - Jeśli "home_basic" → proponuj bodyweight, hantle, gumy
+   - Jeśli "full_gym" → wszystko dostępne
+   - Zawsze zaproponuj przynajmniej JEDNĄ opcję z dostępnym sprzętem
+
+═══════════════════════════════════════════════════════════════
+PRZYKŁADY INTELIGENTNYCH ZAMIAN
+═══════════════════════════════════════════════════════════════
+
+**Kontuzja kolana + Przysiad:**
+✅ DOBRZE: Hip Thrust, Martwy Ciąg Rumuński, Mostek Biodrowy
+❌ ŹLE: Wykroki, Przysiady Bułgarskie (nadal obciążają kolano)
+
+**Brak sztangi + Wyciskanie:**
+✅ DOBRZE: Wyciskanie Hantli, Pompki z Obciążeniem, Rozpiętki
+❌ ŹLE: Wyciskanie Sztangą (user nie ma!)
+
+**Początkujący + Ciężkie ćwiczenie:**
+✅ DOBRZE: Wersja maszynowa, Ćwiczenie z asystą, Regresja (np. Pompki z kolan)
+❌ ŹLE: Jeszcze trudniejszy wariant
+
+**Zaawansowany + "Zbyt łatwe":**
+✅ DOBRZE: Dodaj pauzę izometryczną, Zwiększ zakres ruchu, Dodaj tempo
+❌ ŹLE: Po prostu więcej serii (może przekroczyć MRV)
+
+═══════════════════════════════════════════════════════════════
+FORMAT ODPOWIEDZI (STRICT JSON)
+═══════════════════════════════════════════════════════════════
+
+{
+  "alternatives": [
+    {
+      "name": "Dokładna nazwa ćwiczenia po polsku",
+      "details": "3 serie x 8-12 powtórzeń @ RPE 7-8 | Przerwa 90s",
+      "tips": "Model: DDP. Tempo 3010. [Krótka wskazówka techniczna]",
+      "reason": "Dlaczego to ćwiczenie jest zgodne z kontekstem użytkownika i zasadami naukowymi (Volume Landmarks + bezpieczeństwo)",
+      "volume_impact": "Dodaje X serii na [partia]. User w MAV/MEV/MRV",
+      "progression_note": "LP/DDP - szczegóły progresji"
+    }
+  ],
+  "safety_notes": "Dodatkowe ostrzeżenia dotyczące zdrowia/kontuzji (jeśli są)",
+  "volume_warning": "OSTRZEŻENIE jeśli zmiana może przekroczyć MRV lub naruszyć Junk Volume (null jeśli OK)"
+}
+
+═══════════════════════════════════════════════════════════════
+ZASADY DECISION-MAKING
+═══════════════════════════════════════════════════════════════
+
+1. SAFETY FIRST: Lepiej zaproponować łatwiejsze ćwiczenie niż ryzykować kontuzję.
+2. SCIENCE SECOND: Alternatywy muszą mieć sens z punktu widzenia Volume Landmarks i Progressive Overload.
+3. CONTEXT THIRD: Uwzględnij goals, equipment, fitness_level.
+4. USER INTENT LAST: Jeśli user prosi o coś niebezpiecznego/nieefektywnego → zaproponuj bezpieczniejszą wersję + wyjaśnij dlaczego.
+
+Jeśli nie możesz znaleźć 2-3 bezpiecznych alternatyw (np. wszystkie opcje konfliktują z kontuzjami), zwróć 1 opcję + szczegółowe wyjaśnienie w safety_notes.
+''';
+      
+      final messages = [
+        {'role': 'system', 'content': systemPrompt},
+        {'role': 'user', 'content': 'Zaproponuj bezpieczne alternatywy.'},
+      ];
+      
+      final response = await _makeRequest(
+        model: reasoningModel,
+        messages: messages,
+        responseFormat: {'type': 'json_object'},
+        temperature: 0.3, // Slightly higher for creativity in alternatives
+        timeout: const Duration(seconds: 60),
+      );
+      
+      final responseJson = jsonDecode(response['choices'][0]['message']['content']);
+      print('✅ AI response received');
+      print('📋 Alternatives count: ${responseJson['alternatives']?.length ?? 0}');
+      
+      // Check for volume warning from AI
+      final volumeWarning = responseJson['volume_warning'];
+      if (volumeWarning != null && volumeWarning.toString().isNotEmpty) {
+        print('⚠️ Volume Warning: $volumeWarning');
+      }
+      
+      // Parse alternatives into PlanItem objects
+      final alternatives = <PlanItem>[];
+      final alternativesData = responseJson['alternatives'] as List? ?? [];
+      
+      for (var alt in alternativesData) {
+        // Build comprehensive tips combining all information
+        final tipsComponents = <String>[];
+        
+        if (alt['tips'] != null) {
+          tipsComponents.add(alt['tips']);
+        }
+        
+        if (alt['progression_note'] != null) {
+          tipsComponents.add('📊 ${alt['progression_note']}');
+        }
+        
+        if (alt['volume_impact'] != null) {
+          tipsComponents.add('📈 ${alt['volume_impact']}');
+        }
+        
+        if (alt['reason'] != null) {
+          tipsComponents.add('\n💡 ${alt['reason']}');
+        }
+        
+        alternatives.add(PlanItem(
+          name: alt['name'] ?? 'Nieznane ćwiczenie',
+          details: alt['details'] ?? '',
+          tips: tipsComponents.join('\n\n'),
+          note: responseJson['safety_notes'],
+        ));
+      }
+      
+      print('✅ Parsed ${alternatives.length} alternative exercises');
+      return alternatives;
+    } catch (e, stackTrace) {
+      print('🔴 Exercise Modification Error: $e');
+      print('🔴 Stack trace: $stackTrace');
+      throw Exception('Failed to modify exercise: $e');
+    }
+  }
+  
   // Private helper methods
   
   Future<Map<String, dynamic>> _makeRequest({
@@ -481,6 +667,44 @@ FUNDAMENTY LOGIKI (CRITICAL RULES - DO NOT BREAK):
    - Hantle: Skoki co 2.5kg (np. 15kg, 17.5kg, 20kg).
    - Jeśli skok ciężaru jest niemożliwy (np. wznosy bokiem), zwiększaj powtórzenia lub skracaj przerwy (Density).
 
+5. **WYMAGANIA OBJĘTOŚCI NA SESJĘ (CRITICAL - DO NOT IGNORE):**
+   Volume Landmarks (MEV/MAV/MRV) to limity TYGODNIOWE, nie per-sesję!
+   
+   Każdy dzień treningowy MUSI zawierać odpowiednią ilość ćwiczeń:
+   
+   **Początkujący (<1 rok doświadczenia):**
+   - 4-5 ćwiczeń GŁÓWNYCH
+   - 3 serie każde
+   - TOTAL: 12-15 serii roboczych/sesję
+   - Czas trwania: 45-60 minut
+   
+   **Średniozaawansowani (1-3 lata):**
+   - 5-7 ćwiczeń
+   - 3-4 serie każde
+   - TOTAL: 18-25 serii roboczych/sesję
+   - Czas trwania: 60-75 minut
+   
+   **Zaawansowani (>3 lata):**
+   - 6-9 ćwiczeń
+   - 3-5 serii każde
+   - TOTAL: 22-35 serii roboczych/sesję
+   - Czas trwania: 75-90 minut
+   
+   **JAK DZIELIĆ WEEKLY VOLUME:**
+   - 3 sesje/tydzień → każda sesja = ~33% weekly volume
+   - 4 sesje/tydzień → każda sesja = ~25% weekly volume
+   - 5 sesji/tydzień → każda sesja = ~20% weekly volume
+   
+   **PRZYKŁAD dla intermediate, 3 sesje/tydzień, MAV=16 serii/tydzień na klatkę:**
+   - Sesja 1 (Push): 5-6 serii klatki
+   - Sesja 2 (Pull): 0 serii klatki
+   - Sesja 3 (Push): 5-6 serii klatki
+   - TOTAL: 10-12 serii klatki/tydzień ✅ (bliskie MAV)
+   
+   **WALIDACJA:** 
+   Jeśli plan treningowy zawiera <10 serii/sesję → TO BŁĄD! Za mało!
+   Jeśli plan treningowy zawiera >40 serii/sesję → TO BŁĄD! Za dużo!
+
 FORMAT JSON (Ściśle przestrzegaj):
 {
   "title": string, // Np. "Hipertrofia: Faza Akumulacji (DDP)"
@@ -510,6 +734,8 @@ FORMAT JSON (Ściśle przestrzegaj):
 
 Wygeneruj plan na 14 DNI (Schedule musi mieć tablicę 14 elementów). Dni nietreningowe oznacz jako "Odpoczynek" w dayName.
 Tydzień 2 ma symulować progresję względem Tygodnia 1 (np. zwiększony ciężar lub liczba powtórzeń).
+
+PAMIĘTAJ: Każdy dzień TRENINGOWY musi mieć 12-35 serii w zależności od poziomu użytkownika!
 ''';
   }
 }

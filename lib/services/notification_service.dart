@@ -15,36 +15,57 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
 
   bool _notificationsEnabled = false;
+  bool _initialized = false;
+  
+  bool get isInitialized => _initialized;
+  bool get areNotificationsEnabled => _notificationsEnabled;
 
   Future<void> initialize() async {
-    // 1. Initialize Timezone
-    await _configureLocalTimeZone();
+    try {
+      debugPrint('🔔 Initializing NotificationService...');
+      
+      // 1. Initialize Timezone
+      await _configureLocalTimeZone();
+      debugPrint('✅ Timezone configured');
 
-    // 2. Android Initialization Settings
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+      // 2. Android Initialization Settings
+      const AndroidInitializationSettings initializationSettingsAndroid =
+          AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    // 3. iOS/macOS Initialization Settings
-    const DarwinInitializationSettings initializationSettingsDarwin =
-        DarwinInitializationSettings(
-      requestSoundPermission: false,
-      requestBadgePermission: false,
-      requestAlertPermission: false,
-    );
+      // 3. iOS/macOS Initialization Settings
+      const DarwinInitializationSettings initializationSettingsDarwin =
+          DarwinInitializationSettings(
+        requestSoundPermission: false,
+        requestBadgePermission: false,
+        requestAlertPermission: false,
+      );
 
-    // 4. General Initialization Settings
-    const InitializationSettings initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsDarwin,
-      macOS: initializationSettingsDarwin,
-    );
+      // 4. General Initialization Settings
+      const InitializationSettings initializationSettings = InitializationSettings(
+        android: initializationSettingsAndroid,
+        iOS: initializationSettingsDarwin,
+        macOS: initializationSettingsDarwin,
+      );
 
-    await flutterLocalNotificationsPlugin.initialize(
-      initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse details) {
-        debugPrint('NOTIFICATION CLICKED: ${details.payload}');
-      },
-    );
+      final result = await flutterLocalNotificationsPlugin.initialize(
+        initializationSettings,
+        onDidReceiveNotificationResponse: (NotificationResponse details) {
+          debugPrint('🔔 NOTIFICATION CLICKED: ${details.payload}');
+        },
+      );
+      
+      _initialized = result ?? false;
+      
+      if (_initialized) {
+        debugPrint('✅ NotificationService initialized successfully');
+      } else {
+        debugPrint('⚠️ NotificationService initialization returned false');
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error initializing NotificationService: $e');
+      debugPrint('Stack trace: $stackTrace');
+      _initialized = false;
+    }
   }
 
   Future<void> _configureLocalTimeZone() async {
@@ -54,23 +75,37 @@ class NotificationService {
   }
 
   Future<void> requestPermissions() async {
-     // Android 13+
-    final bool? androidGranted = await flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
-    
-    // iOS
-    final bool? iosGranted = await flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin>()
-        ?.requestPermissions(
-          alert: true,
-          badge: true,
-          sound: true,
-        );
+    try {
+      debugPrint('🔔 Requesting notification permissions...');
+      
+      // Android 13+
+      final bool? androidGranted = await flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.requestNotificationsPermission();
+      
+      debugPrint('Android permission: ${androidGranted ?? "N/A (not Android 13+)"}');
+      
+      // iOS
+      final bool? iosGranted = await flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>()
+          ?.requestPermissions(
+            alert: true,
+            badge: true,
+            sound: true,
+          );
+      
+      debugPrint('iOS permission: ${iosGranted ?? "N/A (not iOS)"}');
 
-    _notificationsEnabled = (androidGranted ?? false) || (iosGranted ?? false);
+      _notificationsEnabled = (androidGranted ?? false) || (iosGranted ?? false);
+      
+      debugPrint('✅ Notifications enabled: $_notificationsEnabled');
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error requesting notification permissions: $e');
+      debugPrint('Stack trace: $stackTrace');
+      _notificationsEnabled = false;
+    }
   }
 
   // ===========================================================================
@@ -194,21 +229,42 @@ class NotificationService {
 
   /// Show an instant notification for testing purposes
   Future<void> showTestNotification() async {
-    await flutterLocalNotificationsPlugin.show(
-      888, // Arbitrary ID
-      'Test Powiadomienia 🔔', 
-      'To jest testowe powiadomienie z FitPlan AI. Wszystko działa!', 
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'fitplan_reminders',
-          'Przypomnienia',
-          channelDescription: 'Kanał powiadomień FitPlan AI',
-          importance: Importance.max,
-          priority: Priority.high,
+    try {
+      if (!_initialized) {
+        debugPrint('⚠️ Cannot show test notification: Service not initialized');
+        throw 'Serwis powiadomień nie został zainicjalizowany. Uruchom aplikację ponownie.';
+      }
+      
+      debugPrint('🔔 Showing test notification...');
+      
+      await flutterLocalNotificationsPlugin.show(
+        888, // Arbitrary ID
+        'Test Powiadomienia 🔔', 
+        'To jest testowe powiadomienie z FitPlan AI. Wszystko działa!', 
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'fitplan_test',
+            'Test Powiadomień',
+            channelDescription: 'Kanał testowy powiadomień FitPlan AI',
+            importance: Importance.max,
+            priority: Priority.high,
+            playSound: true,
+            enableVibration: true,
+          ),
+          iOS: DarwinNotificationDetails(
+            presentSound: true,
+            presentAlert: true,
+            presentBanner: true,
+          ),
         ),
-        iOS: DarwinNotificationDetails(),
-      ),
-    );
+      );
+      
+      debugPrint('✅ Test notification sent successfully');
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error showing test notification: $e');
+      debugPrint('Stack trace: $stackTrace');
+      rethrow;
+    }
   }
 
   Future<void> _scheduleDaily({
