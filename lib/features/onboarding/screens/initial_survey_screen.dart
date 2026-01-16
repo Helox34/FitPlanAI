@@ -6,7 +6,7 @@ import '../../../core/widgets/custom_text_field.dart';
 import '../../../providers/user_provider.dart';
 import '../../home/screens/main_shell.dart';
 
-/// Initial 3-question survey screen (age, weight, height)
+/// Initial 4-question survey screen (gender, age, weight, height)
 class InitialSurveyScreen extends StatefulWidget {
   const InitialSurveyScreen({super.key});
 
@@ -19,6 +19,8 @@ class _InitialSurveyScreenState extends State<InitialSurveyScreen> {
   final _ageController = TextEditingController();
   final _weightController = TextEditingController();
   final _heightController = TextEditingController();
+  String? _selectedGender; // NEW: Gender selection
+  bool _isSubmitting = false; // Prevent double-submission
   
   int _currentQuestion = 0;
   
@@ -31,11 +33,25 @@ class _InitialSurveyScreenState extends State<InitialSurveyScreen> {
   }
   
   void _nextQuestion() {
+    // Prevent multiple clicks
+    if (_isSubmitting) return;
+    
+    // Gender question doesn't use form validation
+    if (_currentQuestion == 0) {
+      if (_selectedGender == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Proszę wybrać płeć')),
+        );
+        return;
+      }
+      setState(() => _currentQuestion++);
+      return;
+    }
+    
+    // Other questions use form validation
     if (_formKey.currentState!.validate()) {
-      if (_currentQuestion < 2) {
-        setState(() {
-          _currentQuestion++;
-        });
+      if (_currentQuestion < 3) {
+        setState(() => _currentQuestion++);
       } else {
         _submitSurvey();
       }
@@ -44,46 +60,171 @@ class _InitialSurveyScreenState extends State<InitialSurveyScreen> {
   
   void _previousQuestion() {
     if (_currentQuestion > 0) {
-      setState(() {
-        _currentQuestion--;
-      });
+      setState(() => _currentQuestion--);
     }
   }
   
   Future<void> _submitSurvey() async {
+    if (_isSubmitting) {
+      print('⚠️ Already submitting, ignoring...');
+      return;
+    }
+    
+    setState(() => _isSubmitting = true);
+    print('🔵 _submitSurvey started');
     final userProvider = context.read<UserProvider>();
     
-    // Save survey data AND mark as completed
-    await userProvider.saveInitialSurvey(
-      age: int.parse(_ageController.text),
-      weight: double.parse(_weightController.text),
-      height: double.parse(_heightController.text),
-    );
-    
-    // Mark survey as completed
-    await userProvider.markSurveyCompleted();
-    
-    if (mounted) {
-      // Go directly to MainShell (no PlanTypeSelectionScreen)
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => MainShell(),
-        ),
+    try {
+      // Save gender first
+      print('🟢 Saving gender: $_selectedGender');
+      await userProvider.updateGender(_selectedGender!);
+      print('✅ Gender saved');
+      
+      // Save survey data
+      print('🟢 Saving survey data...');
+      await userProvider.saveInitialSurvey(
+        age: int.parse(_ageController.text),
+        weight: double.parse(_weightController.text),
+        height: double.parse(_heightController.text),
       );
+      print('✅ Survey data saved');
+      
+      // Mark survey as completed
+      print('🟢 Marking survey as completed...');
+      await userProvider.markSurveyCompleted();
+      print('✅ Survey marked complete');
+      
+      if (mounted) {
+        print('🟢 Navigating to MainShell...');
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => MainShell()),
+        );
+        print('✅ Navigation called');
+      } else {
+        print('❌ Widget not mounted!');
+      }
+    } catch (e) {
+      print('❌ Error in _submitSurvey: $e');
+      setState(() => _isSubmitting = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Błąd: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
   
   Widget _buildQuestion() {
     switch (_currentQuestion) {
       case 0:
-        return _buildAgeQuestion();
+        return _buildGenderQuestion();
       case 1:
-        return _buildWeightQuestion();
+        return _buildAgeQuestion();
       case 2:
+        return _buildWeightQuestion();
+      case 3:
         return _buildHeightQuestion();
       default:
         return const SizedBox();
     }
+  }
+  
+  Widget _buildGenderQuestion() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Jaka jest Twoja płeć?',
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 32),
+        
+        // Kobieta
+        _buildGenderCard(
+          gender: 'female',
+          label: 'Kobieta',
+          icon: Icons.female,
+          color: const Color(0xFFEC4899), // Pink
+        ),
+        const SizedBox(height: 16),
+        
+        // Mężczyzna
+        _buildGenderCard(
+          gender: 'male',
+          label: 'Mężczyzna',
+          icon: Icons.male,
+          color: const Color(0xFF3B82F6), // Blue
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildGenderCard({
+    required String gender,
+    required String label,
+    required IconData icon,
+    required Color color,
+  }) {
+    final isSelected = _selectedGender == gender;
+    
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => setState(() => _selectedGender = gender),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: isSelected 
+                ? color.withOpacity(0.1) 
+                : AppColors.surface.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isSelected ? color : AppColors.border,
+              width: 2,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 28, color: color),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isSelected ? color : AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              if (isSelected)
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.check, color: Colors.white, size: 18),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
   
   Widget _buildAgeQuestion() {
@@ -204,13 +345,13 @@ class _InitialSurveyScreenState extends State<InitialSurveyScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Progress indicator
+                // Progress indicator (4 steps now)
                 Row(
-                  children: List.generate(3, (index) {
+                  children: List.generate(4, (index) {
                     return Expanded(
                       child: Container(
                         height: 4,
-                        margin: EdgeInsets.only(right: index < 2 ? 8 : 0),
+                        margin: EdgeInsets.only(right: index < 3 ? 8 : 0),
                         decoration: BoxDecoration(
                           color: index <= _currentQuestion
                               ? AppColors.primary
@@ -230,8 +371,9 @@ class _InitialSurveyScreenState extends State<InitialSurveyScreen> {
                 
                 // Next button
                 CustomButton(
-                  text: _currentQuestion < 2 ? 'Dalej' : 'Zakończ',
+                  text: _currentQuestion < 3 ? 'Dalej' : 'Zakończ',
                   onPressed: _nextQuestion,
+                  isLoading: _isSubmitting, // Show loading when submitting
                 ),
               ],
             ),

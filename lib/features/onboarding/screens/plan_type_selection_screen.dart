@@ -3,6 +3,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/models/models.dart';
 import '../../../core/widgets/worm_loader.dart';
 import 'process_screen.dart';
+import 'training_days_picker_screen.dart'; // Training Days Picker
 
 /// Screen for selecting plan type (Workout or Diet)
 class PlanTypeSelectionScreen extends StatefulWidget {
@@ -21,24 +22,44 @@ class _PlanTypeSelectionScreenState extends State<PlanTypeSelectionScreen> {
   @override
   void initState() {
     super.initState();
-    // If preselected mode is provided, navigate directly to ProcessScreen
+    // If preselected mode is provided, navigate directly
     if (widget.preselectedMode != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => ProcessScreen(mode: widget.preselectedMode!),
-          ),
-        );
+        if (widget.preselectedMode == CreatorMode.WORKOUT) {
+          // Workout plans go through training days picker
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => const TrainingDaysPickerScreen(),
+            ),
+          );
+        } else {
+          // Diet plans go directly to interview
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => ProcessScreen(mode: widget.preselectedMode!),
+            ),
+          );
+        }
       });
     }
   }
 
   void _selectPlanType(BuildContext context, CreatorMode mode) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => ProcessScreen(mode: mode),
-      ),
-    );
+    if (mode == CreatorMode.WORKOUT) {
+      // For workout plans, go through training days picker first
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => const TrainingDaysPickerScreen(),
+        ),
+      );
+    } else {
+      // For diet plans, go directly to interview
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => ProcessScreen(mode: mode),
+        ),
+      );
+    }
   }
 
   @override

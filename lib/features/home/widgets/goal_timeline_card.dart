@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/user_provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../profile/widgets/goal_setting_dialog.dart';
 
 class GoalTimelineCard extends StatelessWidget {
   const GoalTimelineCard({super.key});
@@ -14,22 +15,68 @@ class GoalTimelineCard extends StatelessWidget {
         final progress = userProvider.goalProgressPercent;
         final deadline = userProvider.goalDeadline;
 
-        // If no goal set, show TEST BUTTON (Temporary for verification)
+        // If no goal set, show SET GOAL button
         if (deadline == null) {
-          return Center(
-            child: TextButton.icon(
-              onPressed: () {
-                // Set a dummy goal 3 months from now
-                userProvider.updateGoal(
-                  goal: 'build_muscle',
-                  deadline: DateTime.now().add(const Duration(days: 90)),
-                  targetWeight: 80.0,
-                );
-              },
-              icon: const Icon(Icons.add_task),
-              label: const Text('[TEST] Ustaw Cel na 90 dni'),
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.primary.withOpacity(0.1),
+                  AppColors.secondary.withOpacity(0.05),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.primary.withOpacity(0.3)),
             ),
-          ); 
+            child: Column(
+              children: [
+                const Text(
+                  '🎯',
+                  style: TextStyle(fontSize: 48),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Ustaw Swój Cel Fitness',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Zdefiniuj cel i datę osiągnięcia, a my pomożemy Ci go zrealizować!',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => const GoalSettingDialog(),
+                    );
+                  },
+                  icon: const Icon(Icons.add_task),
+                  label: const Text('Ustaw Cel'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
         }
 
         return _buildTimelineCard(
@@ -51,7 +98,7 @@ class GoalTimelineCard extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
@@ -82,6 +129,17 @@ class GoalTimelineCard extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                   color: colorScheme.onSurface,
                 ),
+              ),
+              const Spacer(),
+              IconButton(
+                icon: Icon(Icons.edit, size: 20, color: colorScheme.onSurfaceVariant),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => const GoalSettingDialog(),
+                  );
+                },
+                tooltip: 'Edytuj cel',
               ),
             ],
           ),

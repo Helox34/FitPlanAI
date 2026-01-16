@@ -80,13 +80,20 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
       body: Consumer<PlanProvider>(
         builder: (context, planProvider, _) {
           if (planProvider.isGenerating) {
-             return const Center(
+             return Center(
                child: Column(
                  mainAxisAlignment: MainAxisAlignment.center,
                  children: [
-                   WormLoader(),
-                   SizedBox(height: 24),
-                   Text('Tworzenie planu...', style: TextStyle(color: Colors.white70)),
+                   const WormLoader(),
+                   const SizedBox(height: 24),
+                   Text(
+                     'Generowanie planu...',
+                     style: TextStyle(
+                       color: Theme.of(context).colorScheme.onSurface,
+                       fontSize: 16,
+                       fontWeight: FontWeight.w500,
+                     ),
+                   ),
                  ],
                ),
              );
@@ -94,9 +101,9 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
 
           final plan = planProvider.workoutPlan;
           
-          if (plan == null) {
+          if (planProvider.workoutPlan == null) {
             return EmptyPlanWidget(
-              dayName: 'Nie masz jeszcze planu treningowego',
+              mode: CreatorMode.WORKOUT,
               onGeneratePlan: _navigateToProgressTab,
             );
           }
@@ -106,7 +113,7 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
             child: Column(
               children: [
                 // Custom Header with Achievements and Title
-                _buildDashboardHeader(plan),
+                _buildDashboardHeader(plan!),
                 
                 // Day Selector (Calendar Strip)
                 Container(
@@ -195,13 +202,11 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
                       ),
                       
                       // Day Content
-                      _buildDayContent(plan, _selectedDayIndex),
+                      _buildDayContent(plan!, _selectedDayIndex),
                     ],
                   ),
                 ),
                 
-                // Add padding for bottom navigation bar
-                const SizedBox(height: 80), 
               ],
             ),
           );

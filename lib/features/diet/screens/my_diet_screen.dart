@@ -89,9 +89,9 @@ class _MyDietScreenState extends State<MyDietScreen> {
 
           final plan = planProvider.dietPlan;
           
-          if (plan == null) {
+          if (planProvider.dietPlan == null) {
             return EmptyPlanWidget(
-              dayName: 'Nie masz jeszcze planu dietetycznego',
+              mode: CreatorMode.DIET,
               onGeneratePlan: _navigateToProgressTab,
             );
           }
@@ -106,7 +106,7 @@ class _MyDietScreenState extends State<MyDietScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      plan.title,
+                      plan!.title,
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
@@ -181,7 +181,8 @@ class _MyDietScreenState extends State<MyDietScreen> {
     
     if (planDay == null || planDay.items.isEmpty) {
       return EmptyPlanWidget(
-        dayName: dayNames[dayIndex],
+        mode: CreatorMode.DIET,
+        onGeneratePlan: _navigateToProgressTab,
       );
     }
     

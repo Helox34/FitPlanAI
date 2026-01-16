@@ -197,6 +197,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   title: 'Waga Ciała',
                   entries: progressProvider.weightEntries,
                   color: Colors.blueAccent,
+                  projectedData: planProvider.dietPlan?.progress, // AI Projections
                 ),
                 
                 const SizedBox(height: 24),
@@ -353,8 +354,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
     required String title,
     required List<dynamic> entries, 
     required Color color,
+    ProgressData? projectedData, // AI Projections from diet plan
   }) {
-    if (entries.isEmpty) {
+    if (entries.isEmpty && (projectedData == null || projectedData.dataPoints.isEmpty)) {
       return Card(
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -368,8 +370,8 @@ class _ProgressScreenState extends State<ProgressScreen> {
       );
     }
 
-    // Chart Data Preparation
-    List<FlSpot> spots = [];
+    // Chart Data Preparation - ACTUAL DATA
+    List<FlSpot> actualSpots = [];
     double minY = double.infinity;
     double maxY = double.negativeInfinity;
 
@@ -377,7 +379,30 @@ class _ProgressScreenState extends State<ProgressScreen> {
         final val = entries[i].value;
         if (val < minY) minY = val;
         if (val > maxY) maxY = val;
-        spots.add(FlSpot(i.toDouble(), val));
+        actualSpots.add(FlSpot(i.toDouble(), val));
+    }
+
+    // PROJECTED DATA - from AI diet plan
+    List<FlSpot> projectedSpots = [];
+    if (projectedData != null && projectedData.dataPoints.isNotEmpty) {
+      // Start projected line from last actual weight (or first projected if no actual)
+      double startWeight = entries.isNotEmpty ? entries.last.value : projectedData.dataPoints.first.value;
+      
+      for (var point in projectedData.dataPoints) {
+        // X-axis: actual entries count + week offset
+        double xPos = entries.length + point.week - 1;
+        double yVal = point.value;
+        
+        if (yVal < minY) minY = yVal;
+        if (yVal > maxY) maxY = yVal;
+        
+        projectedSpots.add(FlSpot(xPos, yVal));
+      }
+      
+      // Connect last actual to first projected
+      if (entries.isNotEmpty && projectedSpots.isNotEmpty) {
+        projectedSpots.insert(0, FlSpot(entries.length - 1, startWeight));
+      }
     }
     
     // Dynamic Y axis margins
@@ -386,21 +411,65 @@ class _ProgressScreenState extends State<ProgressScreen> {
     minY -= yMargin;
     maxY += yMargin;
 
+    // Calculate max X for both datasets
+    double maxX = (entries.length - 1).toDouble();
+    if (projectedSpots.isNotEmpty) {
+      maxX = projectedSpots.last.x; // Fixed: .dx -> .x
+    }
+
     return Card(
       elevation: 4,
       shadowColor: Colors.black12,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 24, 24, 24), // Right padding for labels
+        padding: const EdgeInsets.fromLTRB(16, 24, 24, 24),
         child: Column(
           children: [
+            // Header with current weight
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                Text('${entries.last.value} kg', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 18)),
+                if (entries.isNotEmpty)
+                  Text('${entries.last.value} kg', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 18)),
               ],
             ),
+            
+            // Legend
+            if (projectedSpots.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Actual data legend
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Text('Twoje Wyniki', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  const SizedBox(width: 20),
+                  // Projected data legend
+                  Container(
+                    width: 20,
+                    height: 2,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade400,
+                    ),
+                    child: CustomPaint(
+                      painter: DashedLinePainter(color: Colors.grey.shade400),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Text('Prognoza AI', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                ],
+              ),
+            ],
+            
             const SizedBox(height: 24),
             SizedBox(
               height: 220,
@@ -421,19 +490,33 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       sideTitles: SideTitles(
                         showTitles: true,
                         reservedSize: 30,
-                        interval: entries.length > 5 ? (entries.length / 5).toDouble() : 1, // Avoid crowding
+                        interval: maxX > 5 ? (maxX / 5) : 1,
                         getTitlesWidget: (value, meta) {
                           int index = value.toInt();
+                          
+                          // Show actual entry dates
                           if (index >= 0 && index < entries.length) {
-                             // Only show ~5 dates max
-                             return Padding(
-                               padding: const EdgeInsets.only(top: 8.0),
-                               child: Text(
-                                 DateFormat('d MMM').format(entries[index].date),
-                                 style: const TextStyle(color: Colors.grey, fontSize: 10),
-                               ),
-                             );
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 8.0),
+                                child: Text(
+                                  DateFormat('d MMM').format(entries[index].date),
+                                  style: const TextStyle(color: Colors.grey, fontSize: 10),
+                                ),
+                              );
                           }
+                          
+                          // Show week labels for projections
+                          if (projectedData != null && index >= entries.length) {
+                            int weekNum = index - entries.length + 1;
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Text(
+                                'Tydz $weekNum',
+                                style: const TextStyle(color: Colors.grey, fontSize: 10),
+                              ),
+                            );
+                          }
+                          
                           return const SizedBox();
                         },
                       ),
@@ -454,27 +537,52 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   ),
                   borderData: FlBorderData(show: false),
                   minX: 0,
-                  maxX: (entries.length - 1).toDouble(),
+                  maxX: maxX,
                   minY: minY,
                   maxY: maxY,
                   lineBarsData: [
-                    LineChartBarData(
-                      spots: spots,
-                      isCurved: true,
-                      color: color,
-                      barWidth: 4,
-                      isStrokeCapRound: true,
-                      dotData: const FlDotData(show: true),
-                      belowBarData: BarAreaData(
-                        show: true,
-                        color: color.withOpacity(0.15),
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [color.withOpacity(0.5), color.withOpacity(0.0)],
+                    // ACTUAL DATA LINE (solid)
+                    if (actualSpots.isNotEmpty)
+                      LineChartBarData(
+                        spots: actualSpots,
+                        isCurved: true,
+                        color: color,
+                        barWidth: 4,
+                        isStrokeCapRound: true,
+                        dotData: const FlDotData(show: true),
+                        belowBarData: BarAreaData(
+                          show: true,
+                          color: color.withOpacity(0.15),
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [color.withOpacity(0.5), color.withOpacity(0.0)],
+                          ),
                         ),
                       ),
-                    ),
+                    
+                    // PROJECTED DATA LINE (dashed)
+                    if (projectedSpots.isNotEmpty)
+                      LineChartBarData(
+                        spots: projectedSpots,
+                        isCurved: true,
+                        color: Colors.grey.shade400,
+                        barWidth: 3,
+                        isStrokeCapRound: true,
+                        dashArray: [8, 4], // Dashed line!
+                        dotData: FlDotData(
+                          show: true,
+                          getDotPainter: (spot, percent, barData, index) {
+                            return FlDotCirclePainter(
+                              radius: 4,
+                              color: Colors.white,
+                              strokeWidth: 2,
+                              strokeColor: Colors.grey.shade400,
+                            );
+                          },
+                        ),
+                        belowBarData: BarAreaData(show: false),
+                      ),
                   ],
                 ),
               ),
@@ -484,4 +592,35 @@ class _ProgressScreenState extends State<ProgressScreen> {
       ),
     );
   }
+}
+
+// Custom painter for dashed line in legend
+class DashedLinePainter extends CustomPainter {
+  final Color color;
+  
+  DashedLinePainter({required this.color});
+  
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+    
+    const dashWidth = 3.0;
+    const dashSpace = 2.0;
+    double startX = 0;
+    
+    while (startX < size.width) {
+      canvas.drawLine(
+        Offset(startX, size.height / 2),
+        Offset(startX + dashWidth, size.height / 2),
+        paint,
+      );
+      startX += dashWidth + dashSpace;
+    }
+  }
+  
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

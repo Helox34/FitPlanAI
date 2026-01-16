@@ -1,0 +1,86 @@
+PRZYKŁADOWE ODPOWIEDZI - WYWIAD DIETETYCZNY
+============================================
+
+UWAGA: Płeć, wiek, waga i wzrost są już znane z initial survey!
+AI powinno zacząć od pytania o cel i preferencje.
+
+PYTANIE: Jaki jest Twój cel?
+ODPOWIEDŹ: Chcę schudnąć 10 kg w zdrowy sposób
+
+PYTANIE: Jaki jest Twój poziom aktywności fizycznej?
+ODPOWIEDŹ: Umiarkowany - trenuję 3-4 razy w tygodniu
+
+PYTANIE: Czy masz jakieś ograniczenia dietetyczne?
+ODPOWIEDŹ: Nie, nie mam alergii ani nietolerancji
+
+PYTANIE: Czy masz jakieś schorzenia?
+ODPOWIEDŹ: Nie, jestem zdrowy
+
+PYTANIE: Ile posiłków dziennie preferujesz?
+ODPOWIEDŹ: 4 posiłki - śniadanie, obiad, podwieczorek, kolacja
+
+PYTANIE: Czy są produkty których nie lubisz?
+ODPOWIEDŹ: Nie lubię cukinii i bakłażana
+
+PYTANIE: Jaki tryb życia prowadzisz?
+ODPOWIEDŹ: Pracuję w biurze 8-16, trenuję wieczorami
+
+PYTANIE: Czy masz jakieś preferencje żywieniowe?
+ODPOWIEDŹ: Wolę dużo białka, lubię mięso i ryby
+
+PYTANIE: Ile wody dziennie pijesz?
+ODPOWIEDŹ: Około 2 litrów
+
+PYTANIE: Czy jesz poza domem?
+ODPOWIEDŹ: Czasami lunch w pracy, ale mam dostęp do kuchni
+
+PYTANIE: Czy jesteś gotowy na suplementację?
+ODPOWIEDŹ: Tak, biorę już witaminę D i omega-3
+
+===================================================================
+
+ALTERNATYWNY PROFIL - KOBIETA REDUKCJA:
+
+ODPOWIEDŹ: Chcę zredukować tkankę tłuszczową i wymodelować sylwetkę
+ODPOWIEDŹ: Średni - trenuję 4-5 razy w tygodniu (siłownia + cardio)
+ODPOWIEDŹ: Jestem na diecie bezglutenowej (celiakia)
+ODPOWIEDŹ: Celiakia, ale dobrze kontrolowana
+ODPOWIEDŹ: 5 posiłków - małe, częste
+ODPOWIEDŹ: Nie lubię sera pleśniowego
+ODPOWIEDŹ: Aktywny - praca zdalna, treningi rano
+ODPOWIEDŹ: Dużo warzyw, ryby, kurczak, unikam przetworzonej żywności
+ODPOWIEDŹ: 3 litry dziennie
+ODPOWIEDŹ: Rzadko, gotuję w domu
+ODPOWIEDŹ: Tak, przyjmuję magnez i probiotyki
+
+===================================================================
+
+ALTERNATYWNY PROFIL - MASA MIĘŚNIOWA:
+
+ODPOWIEDŹ: Chcę zbudować masę mięśniową
+ODPOWIEDŹ: Wysoki - trenuję siłowo 5-6 razy w tygodniu
+ODPOWIEDŹ: Jestem wegetarianinem
+ODPOWIEDŹ: Nie
+ODPOWIEDŹ: 6 posiłków dziennie
+ODPOWIEDŹ: Nie lubię tofu
+ODPOWIEDŹ: Student, elastyczne godziny, dużo czasu na gotowanie
+ODPOWIEDŹ: Wysokobiałkowa dieta, dużo orzechów, jajka, nabiał
+ODPOWIEDŹ: 4 litry (muszę dużo pić przy treningach)
+ODPOWIEDŹ: Nie, gotuję meal prep na cały tydzień
+ODPOWIEDŹ: Tak, białko serwatkowe, kreatyna, BCAA
+
+===================================================================
+
+ALTERNATYWNY PROFIL - UTRZYMANIE + ZDROWIE:
+
+ODPOWIEDŹ: Chcę jeść zdrowiej i utrzymać wagę
+ODPOWIEDŹ: Niski - biurowy tryb życia, brak regularnych treningów
+ODPOWIEDŹ: Nie, ale chcę ograniczyć cukier
+ODPOWIEDŹ: Lekko podwyższony cholesterol
+ODPOWIEDŹ: 3 posiłki główne
+ODPOWIEDŹ: Nie lubię wątróbki i ryb śródlądowych
+ODPOWIEDŹ: Siedzący - praca biurowa 9-17
+ODPOWIEDŹ: Chcę jeść więcej warzyw i owoców
+ODPOWIEDŹ: Za mało, około 1 litra
+ODPOWIEDŹ: Często jem w restauracjach (3-4 razy w tygodniu)
+ODPOWIEDŹ: Nie, wolę naturalną dietę

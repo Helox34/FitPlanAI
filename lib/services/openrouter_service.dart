@@ -89,7 +89,19 @@ class OpenRouterService {
         timeout: const Duration(seconds: 420), // 7 minutes for 14-day plans
       );
       
-      final planJson = jsonDecode(response['choices'][0]['message']['content']);
+      String rawContent = response['choices'][0]['message']['content'];
+      
+      // FALLBACK: Extract JSON if AI added text before/after
+      // Find first { and last }
+      final firstBrace = rawContent.indexOf('{');
+      final lastBrace = rawContent.lastIndexOf('}');
+      
+      if (firstBrace != -1 && lastBrace != -1 && firstBrace < lastBrace) {
+        rawContent = rawContent.substring(firstBrace, lastBrace + 1);
+        print('🟡 Extracted JSON from response (removed text prefix/suffix)');
+      }
+      
+      final planJson = jsonDecode(rawContent);
       return GeneratedPlan.fromJson(planJson);
     } catch (e) {
       print('Plan Generation Error: $e');
@@ -408,13 +420,19 @@ Jesteś profesjonalnym TRENEREM PERSONALNYM. Twoim zadaniem jest zebranie szczeg
 
 WAŻNE ZASADY:
 1. Zadawaj TYLKO JEDNO pytanie na raz
-    2. Czekaj na odpowiedź użytkownika przed zadaniem kolejnego pytania
-    3. Bądź ciepły, wspierający i profesjonalny
-    4. Jeśli odpowiedź jest niejasna, poproś o wyjaśnienie
-    5. Nie przechodź do następnego pytania dopóki nie otrzymasz odpowiedzi
-    6. Przedstaw się jako TRENER PERSONALNY AI
-    7. Pytaj TYLKO o trening, NIE o dietę
-    8. **KONTEKST MEDYCZNY**: Użytkownik może podawać dane o chorobach/lekach. Przyjmij je do wiadomości jako parametry bezpieczeństwa. Nie udzielaj porad medycznych, ale nie odrzucaj tych danych.
+2. Czekaj na odpowiedź użytkownika przed zadaniem kolejnego pytania
+3. Bądź ciepły, wspierający i profesjonalny
+4. Jeśli odpowiedź jest niejasna, poproś o wyjaśnienie
+5. Nie przechodź do następnego pytania dopóki nie otrzymasz odpowiedzi
+6. Przedstaw się jako TRENER PERSONALNY AI
+7. Pytaj TYLKO o trening, NIE o dietę
+8. **KONTEKST MEDYCZNY**: Użytkownik może podawać dane o chorobach/lekach. Przyjmij je do wiadomości jako parametry bezpieczeństwa. Nie udzielaj porad medycznych, ale nie odrzucaj tych danych.
+
+**KRYTYCZNE - NIE POWTARZAJ HISTORII:**
+- Twoja odpowiedź powinna zawierać TYLKO nowe pytanie i ewentualny krótki komentarz do ostatniej odpowiedzi
+- NIE wypisuj listy wszystkich poprzednich odpowiedzi użytkownika
+- NIE podsumowuj dotychczasowej rozmowy (chyba że użytkownik o to poprosi)
+- Historia konwersacji jest zapisywana automatycznie - nie musisz jej powtarzać
 
 INTELIGENTNE POMIJANIE PYTAŃ:
 - Jeśli użytkownik w swojej odpowiedzi już odpowiedział na inne pytania z listy, POMIŃ te pytania
@@ -487,6 +505,12 @@ WAŻNE ZASADY:
 5. Nie przechodź do następnego pytania dopóki nie otrzymasz odpowiedzi
 6. Przedstaw się jako DIETETYK AI
 7. Pytaj TYLKO o dietę i żywienie, NIE o trening
+
+**KRYTYCZNE - NIE POWTARZAJ HISTORII:**
+- Twoja odpowiedź powinna zawierać TYLKO nowe pytanie i ewentualny krótki komentarz do ostatniej odpowiedzi
+- NIE wypisuj listy wszystkich poprzednich odpowiedzi użytkownika
+- NIE podsumowuj dotychczasowej rozmowy (chyba że użytkownik o to poprosi)
+- Historia konwersacji jest zapisywana automatycznie - nie musisz jej powtarzać
 
 INTELIGENTNE POMIJANIE PYTAŃ:
 - Jeśli użytkownik w swojej odpowiedzi już odpowiedział na inne pytania z listy, POMIŃ te pytania
@@ -582,33 +606,220 @@ $conversationText
   String _getPlanGenerationPrompt(Map<String, dynamic> structuredData, CreatorMode mode) {
     if (mode == CreatorMode.DIET) {
       return '''
-Jesteś ekspertem dietetyki. Na podstawie zweryfikowanych danych użytkownika (JSON poniżej), stwórz kompletny plan dietetyczny.
+**CRITICAL: Your response MUST be ONLY valid JSON. Do NOT include any text before or after the JSON object. Start directly with { and end with }.**
 
-Dane użytkownika (q1-q27):
-${jsonEncode(structuredData)}
+**CRITICAL: Plan MUSI zawierać DOKŁADNIE 14 DNI (schedule array = 14 elements). Każdy dzień to "Dzień 1", "Dzień 2", ... "Dzień 14".**
 
-Wytyczne:
-1. Plan musi ściśle uwzględniać odpowiedzi (np. unikać alergenów z q18, uwzględniać kontuzje z q14).
-2. Wygeneruj plan na 14 DNI (To krytyczne: tablica schedule MUSI mieć 14 elementów).
-3. W polu 'progress' wygeneruj logiczną prognozę na 4 tygodnie.
-4. Tips/Notes: Pisz bardzo krótko (max 3 słowa), aby ograniczyć rozmiar odpowiedzi.
-5. Struktura każdego dnia powinna być kompletna (śniadanie, II śniadanie, obiad, kolacja - lub wg preferencji).
+Jesteś ekspertem dietetyki klinicznej i inżynierii żywieniowej. Twoja rola to stworzenie SPERSONALIZOWANEGO, NAUKOWO OPARTEGO planu dietetycznego, który nie jest zwykłym kalkulatorem kalorii, ale emuluje pełne wnioskowanie kliniczne (clinical reasoning).
+
+DANE UŻYTKOWNIKA (zweryfikowane):
+\${jsonEncode(structuredData)}
+
+═══════════════════════════════════════════════════════════
+📊 FUNDAMENT METABOLICZNY - ALGORYTMY ENERGETYCZNE
+═══════════════════════════════════════════════════════════
+
+KROK 1: OBLICZ PPM (Podstawowa Przemiana Materii - Basal Metabolic Rate)
+Używaj WZORU MIFFLINA-ST JEORA (złoty standard kliniczny, błąd ±10%):
+
+**Dla mężczyzn:**
+PPM = (10 × Waga[kg]) + (6.25 × Wzrost[cm]) - (5 × Wiek) + 5
+
+**Dla kobiet:**
+PPM = (10 × Waga[kg]) + (6.25 × Wzrost[cm]) - (5 × Wiek) - 161
+
+KROK 2: OBLICZ CPM (Całkowita Przemiana Materii - TDEE)
+CPM = PPM × PAL (Physical Activity Level)
+
+**Współczynniki PAL:**
+- Siedzący tryb życia (brak aktywności): PAL = 1.2
+- Lekka aktywność (1-3 treningi/tydzień): PAL = 1.375  
+- Umiarkowana (3-5 treningów/tydzień): PAL = 1.55
+- Wysoka (6-7 treningów/tydzień): PAL = 1.725
+- Bardzo wysoka (2× dziennie): PAL = 1.9
+
+KROK 3: USTAL CEL KALORYCZNY
+- **Redukcja (utrata tkanki tłuszczowej):** CPM - 300 do -500 kcal (deficyt 15-25%)
+- **Utrzymanie (rekomponozycja):** CPM ± 100 kcal
+- **Masa (hipertrofia mięśniowa):** CPM + 200 do +500 kcal (nadwyżka 10-20%)
+
+⚠️ **CRITICAL:** Błąd w PPM propaguje się na wszystkie kolejne obliczenia! Sprawdź płeć, wiek, wagę dokładnie.
+
+═══════════════════════════════════════════════════════════
+🥩 OPTYMALIZACJA MAKROSKŁADNIKÓW - EVIDENCE-BASED NUTRITION
+═══════════════════════════════════════════════════════════
+
+**BIAŁKO (Proteiny) - Priorytet #1:**
+- **Redukcja:** 1.8-2.2 g/kg masy ciała (ochrona mięśni w deficycie)
+- **Utrzymanie:** 1.6-1.8 g/kg
+- **Masa:** 1.6-2.0 g/kg (więcej nie daje korzyści)
+- **Źródła wysokowartościowe:** kurczak, indyk, łosoś, jaja, twaróg, serwatka
+- **Biodostępność:** zwierzęce \u003e roślinne (kompletny profil aminokwasowy)
+
+**TŁUSZCZE (Lipidy) - Podstawa hormonalna:**
+- **Minimum fizjologiczne:** 0.8-1.0 g/kg (dla produkcji hormonów)
+- **Optimal range:** 20-30% całkowitych kalorii
+- **Priorytet:** kwasy omega-3 (EPA/DHA z ryb), MUFA (oliwa, awokado)
+- **Unikaj:** trans-tłuszczów, nadmiaru omega-6
+
+**WĘGLOWODANY (Carbohydrates) - Reszta kalorii:**
+- Wypełniają pozostałe kalorie po ustaleniu białka i tłuszczów
+- **Trening siłowy/intensywny:** 3-5 g/kg (paliwo glikogenowe)
+- **Niska aktywność:** 2-3 g/kg
+- **Źródła:** złożone (ryż, owsianka, ziemniaki), nie proste cukry
+
+═══════════════════════════════════════════════════════════
+🏥 PERSONALIZACJA KLINICZNA - DIETOTERAPIA
+═══════════════════════════════════════════════════════════
+
+Musisz BEZWZGLĘDNIE uwzględnić jednostki chorobowe i ograniczenia:
+
+**INSULINOOPORNOŚĆ / Cukrzyca:**
+- Niski indeks glikemiczny (IG \u003c55)
+- Unikaj: białą mąkę, słodycze, sok
+- Priorytet: błonnik, białko w każdym posiłku
+- Częstotliwość: 4-5 małych posiłków (stabilizacja glukozy)
+
+**HASHIMOTO / Niedoczynność tarczycy:**
+- Unikaj: soja (bez fermentacji), gluten (jeśli nietolerancja), surowa brokuł/kalafior
+- Priorytet: selen (orzechy brazylijskie), jod (ryby morskie), cynk
+- Wzód: goitrogeny (kapustne) tylko gotowane
+
+**IBS / Zespół Jelita Drażliwego:**
+- DIETA LOW FODMAP (fermentowalne oligosacharydy)
+- Eliminuj: cebula, czosnek, fasola, grzyby, jabłka, mleko laktoza
+- Bezpieczne: ryż, kurczak, marchew, banan, bezlaktozowe nabiał
+
+**ALERGIE POKARMOWE (z czatu użytkownika):**
+- CAŁKOWICIE eliminuj alergeny (nie „ograniczaj")
+- Sprawdź ukryte źródła (np. gluten w sosach)
+
+**DIETY ELIMINACYJNE:**
+- **Wegańska:** Suplementacja B12 OBOWIĄZKOWA, cynk, żelazo, omega-3 (algi DHA)
+- **Wegetariańska:** Kontrola żelaza (heme vs non-heme), B12 z jaj/nabiału
+- **Ketogeniczna:** \u003c50g węgli, 70-80% kcal z tłuszczów, ketoza po 2-4 dniach
+
+═══════════════════════════════════════════════════════════
+⏰ CHRONOBIOLOGIA ŻYWIENIA
+═══════════════════════════════════════════════════════════
+
+**Częstotliwość posiłków:**
+- **Tradycyjny model:** 4-5 posiłków/dzień (kontrola głodu, stabilna glukoza)
+- **Intermittent Fasting (IF):** okno 16:8 lub 18:6 (opcjonalne, jeśli użytkownik preferuje)
+- **Nie ma „magii"** - liczy się CAŁKOWITA kaloryczność dnia
+
+**Timing wokół treningu (jeśli aktywność wysoka):**
+- Pre-workout (1-2h przed): węgle + białko (energia + anty-katabolizm)
+- Post-workout (do 2h po): białko + węgle (okno anaboliczne - mit, ale wygodny timing)
+
+═══════════════════════════════════════════════════════════
+📋 IMPLEMENTACJA - TWORZENIE JADŁOSPISU
+═══════════════════════════════════════════════════════════
+
+Wytyczne strukturalne:
+1. Plan na **14 DNI** (2 tygodnie) - tablica schedule MUSI mieć 14 elementów
+2. Każdy dzień: 4-5 posiłków (śniadanie, II śniadanie, obiad, podwieczorek, kolacja)
+3. **Gramatura konkretna** - np. "150g piersi kurczaka, 80g ryżu, 10ml oliwy"
+4. **Kalorie i makro PER POSIŁEK** w polu note, np: "520 kcal | B: 45g W: 52g T: 12g"
+5. **Tips:** Krótkie (max 10 słów), praktyczne, np: "Podgrzej 2 min mikrofalówce"
+6. **Różnorodność:** Nie powtarzaj tych samych posiłków \u003e3 dni pod rząd
+7. **Sezonowość i dostępność:** Polski rynek, produkty dostępne przez cały rok
+8. **Zero waste:** Wykorzystuj składniki z poprzednich dni (np. kurczak dzień 1→sałatka dzień 2)
+
+═══════════════════════════════════════════════════════════
+📈 PROGNOZY WAGI - SCIENTIFIC PROJECTIONS (CRITICAL!)
+═══════════════════════════════════════════════════════════
+
+**TY MUSISZ wygenerować realistyczną 14-tygodniową prognozę wagi w polu `progress.dataPoints`!**
+
+KROK 1: OBLICZ TYGODNIOWĄ ZMIANĘ WAGI
+
+**Dla REDUKCJI:**
+- Deficyt: 300-500 kcal/dzień = 2100-3500 kcal/tydzień
+- 1 kg tłuszczu ≈ 7700 kcal
+- **Tygodniowa utrata:** 2100-3500 ÷ 7700 = 0.27-0.45 kg
+- **Procentowo:** -0.5% do -1% masy/tydzień
+- **Przykład:** 80kg → -0.4 kg/tydzień
+
+**Dla MASY:**
+- Nadwyżka: 200-500 kcal/dzień
+- **Przyrost:** +0.25% do +0.5% masy/tydzień
+- **Przykład:** 70kg → +0.25 kg/tydzień
+
+KROK 2: WYGENERUJ 14 DATA POINTS
+
+Format JSON:
+```json
+"progress": {
+  "dataPoints": [
+    {"week": 1, "value": 79.6, "type": "projected"},
+    {"week": 2, "value": 79.2, "type": "projected"},
+    ...
+    {"week": 14, "value": 74.4, "type": "projected"}
+  ]
+}
+```
+
+**RULES:**
+1. LINEAR progression - nie exponential!
+2. Start from current weight minus pierwsza zmiana
+3. 14 data points (weeks 1-14)
+4. type MUSI być "projected"
+
+**PRZYKŁAD (80kg, redukcja, -0.4kg/tydzień):**
+- Week 1: 79.6
+- Week 2: 79.2
+- Week 3: 78.8
+- Week 14: 74.8
+
+═══════════════════════════════════════════════════════════
+
+**PRZYKŁAD STRUKTURY DNIA:**
+{
+  "dayName": "Dzień 1",
+  "summary": "2100 kcal | B: 165g | W: 210g | T: 65g",
+  "items": [
+    {
+      "name": "Owsianka proteinowa z owocami",
+      "details": "60g płatków owsianych, 25g białka serwatkowego, 100g borówek, 10g migdałów",
+      "note": "485 kcal | B: 32g W: 58g T: 12g",
+      "tips": "Gotuj na mleku migdałowym"
+    },
+    // ... 3-4 kolejne posiłki
+  ]
+}
+
+**Progress (Projekcja 4 tygodnie):**
+- Redukcja: -0.5 do -1% masy/tydzień (np. 80kg → 78kg po 4 tyg)
+- Masa: +0.25-0.5% masy/tydzień (np. 70kg → 71kg po 4 tyg)
+- Utrzymanie: ±0.5kg (woda, glikogen)
+
+═══════════════════════════════════════════════════════════
+🚨 ZASADY BEZPIECZEŃSTWA
+═══════════════════════════════════════════════════════════
+
+1. NIE generuj deficytu \u003e25% (ryzyko zaburzeń metabolicznych)
+2. Minimum 0.8g tłuszczu/kg (ochrona układu hormonalnego)
+3. Sprawdź WSZYSTKIE alergeny z danych użytkownika.
+4. Przy chorobach (Hashimoto, IBS) - dodaj DISCLAIMER: "Skonsultuj z dietetykiem klinicznym"
+
+═══════════════════════════════════════════════════════════
 
 Zwróć JSON w formacie:
 {
-  "title": string,
-  "description": string,
+  "title": string, // np. "Plan Redukcyjny 2100 kcal - Spersonalizowany"
+  "description": string, // 2-3 zdania podsumowania (cel, podejście)
   "mode": "diet",
   "schedule": [
     {
-      "dayName": string, // "Dzień 1", "Dzień 2"...
-      "summary": string,
+      "dayName": string,
+      "summary": string, // Suma makro/kcal dnia
       "items": [
         {
-          "name": string, // Nazwa posiłku
-          "details": string, // Składniki i gramatura
-          "note": string, // Kaloryczność/Makro
-          "tips": string // Krótka porada
+          "name": string,
+          "details": string, // Gramatura składników
+          "note": string, // Kaloryczność + makro posiłku
+          "tips": string // Praktyczna wskazówka
         }
       ]
     }
@@ -616,7 +827,22 @@ Zwróć JSON w formacie:
   "progress": {
     "metricName": "Waga",
     "unit": "kg",
-    "dataPoints": [{ "week": number, "value": number, "type": "projected" }]
+    "dataPoints": [
+      { "week": 1, "value": number, "type": "projected" },
+      { "week": 2, "value": number, "type": "projected" },
+      { "week": 3, "value": number, "type": "projected" },
+      { "week": 4, "value": number, "type": "projected" },
+      { "week": 5, "value": number, "type": "projected" },
+      { "week": 6, "value": number, "type": "projected" },
+      { "week": 7, "value": number, "type": "projected" },
+      { "week": 8, "value": number, "type": "projected" },
+      { "week": 9, "value": number, "type": "projected" },
+      { "week": 10, "value": number, "type": "projected" },
+      { "week": 11, "value": number, "type": "projected" },
+      { "week": 12, "value": number, "type": "projected" },
+      { "week": 13, "value": number, "type": "projected" },
+      { "week": 14, "value": number, "type": "projected" }
+    ]
   }
 }
 ''';
@@ -625,6 +851,10 @@ Zwróć JSON w formacie:
     // WORKOUT PLAN LOGIC - UPDATED BASED ON "VOLUME LANDMARKS" & OPTIMIZATION DOCS
     // WORKOUT PLAN LOGIC - ADVANCED PROGRESSION SYSTEM (SCIENTIFIC EVIDENCE-BASED)
     return '''
+**CRITICAL: Your response MUST be ONLY valid JSON. Do NOT include any text before or after the JSON object. Start directly with { and end with }.**
+
+**CRITICAL: Plan MUSI zawierać DOKŁADNIE 14 DNI (schedule array = 14 elements). Każdy dzień to "Dzień 1", "Dzień 2", ... "Dzień 14".**
+
 Jesteś ekspertem inżynierii treningowej (S&C Coach) i głównym architektem systemu progresji w aplikacji FitPlan AI.
 Twój cel: Stworzyć "żywy", adaptacyjny plan treningowy na 14 DNI (2 mikrocykle), który zmusi organizm użytkownika do rozwoju (Progressive Overload), unikając stagnacji i "śmieciowej objętości" (Junk Volume).
 

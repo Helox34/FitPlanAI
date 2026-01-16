@@ -8,6 +8,7 @@ import '../../../providers/chat_provider.dart';
 import '../../../providers/plan_provider.dart';
 import '../../../providers/user_provider.dart';
 import '../../../core/widgets/loading_overlay.dart';
+import '../widgets/quick_reply_buttons.dart';
 
 /// AI Chat Screen for conducting interviews
 class AIChatScreen extends StatefulWidget {
@@ -26,33 +27,56 @@ class _AIChatScreenState extends State<AIChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isGeneratingPlan = false;
+  ChatProvider? _chatProvider; // Store reference for dispose
   
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final userProvider = context.read<UserProvider>();
-      context.read<ChatProvider>().startInterview(
+      _chatProvider = context.read<ChatProvider>();
+      
+      // Start interview
+      _chatProvider!.startInterview(
         widget.mode,
         userAge: userProvider.age,
         userHeight: userProvider.height,
         userWeight: userProvider.weight,
       );
+      
+      // Add listener for auto-scroll when new messages arrive
+      _chatProvider!.addListener(_scrollToBottom);
+    });
+  }
+  
+  void _scrollToBottom() {
+    // Delay to ensure message is rendered
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (_scrollController.hasClients && mounted) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOut,
+        );
+      }
     });
   }
   
   @override
   void dispose() {
+    _chatProvider?.removeListener(_scrollToBottom);
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
   
-  void _sendMessage() {
-    final message = _messageController.text.trim();
+  void _sendMessage([String? predefinedMessage]) {
+    final message = predefinedMessage ?? _messageController.text.trim();
     if (message.isEmpty) return;
     
-    _messageController.clear();
+    if (predefinedMessage == null) {
+      _messageController.clear();
+    }
     context.read<ChatProvider>().sendMessage(message);
     
     // Scroll to bottom after sending
@@ -65,6 +89,32 @@ class _AIChatScreenState extends State<AIChatScreen> {
         );
       }
     });
+  }
+  
+  /// Check if last AI message is a binary question
+  bool _isBinaryQuestion(String text) {
+    final lowerText = text.toLowerCase();
+    
+    // Priority 1: Explicit (TAK/NIE) marker - most reliable
+    if (lowerText.contains('(tak/nie)')) {
+      return true;
+    }
+    
+    // Priority 2: Common binary question patterns  
+    final binaryPatterns = [
+      r'tak czy nie',
+      r'czy (masz|ma|macie)',
+      r'czy kiedykolwiek',
+      r'czy.*\?$',
+    ];
+    
+    for (final pattern in binaryPatterns) {
+      if (RegExp(pattern, caseSensitive: false).hasMatch(lowerText)) {
+        return true;
+      }
+    }
+    
+    return false;
   }
   
   Future<void> _finishInterview() async {
@@ -262,6 +312,27 @@ class _AIChatScreenState extends State<AIChatScreen> {
                     );
                   },
                 ),
+              ),
+              
+              // Quick reply buttons for binary questions
+              Consumer<ChatProvider>(
+                builder: (context, chatProvider, _) {
+                  if (chatProvider.messages.isEmpty || chatProvider.isLoading) {
+                    return const SizedBox();
+                  }
+                  
+                  final lastMessage = chatProvider.messages.last;
+                  if (lastMessage.role == 'model' && _isBinaryQuestion(lastMessage.text)) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: QuickReplyButtons(
+                        onYes: () => _sendMessage('Tak'),
+                        onNo: () => _sendMessage('Nie'),
+                      ),
+                    );
+                  }
+                  return const SizedBox();
+                },
               ),
               
               // Input area

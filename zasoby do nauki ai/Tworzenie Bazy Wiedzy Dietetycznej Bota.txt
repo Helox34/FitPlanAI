@@ -1,0 +1,72 @@
+
+1
+
+Automatic Zoom
+Architektura Systemów Eksperckich w
+Dietetyce Obliczeniowej: Kompletny
+Raport Implementacyjny
+1. Wstęp: Paradygmat Cyfrowej Dietetyki Precyzyjnej
+Współczesna nauka o żywieniu przechodzi fundamentalną transformację paradygmatu,
+ewoluując z modelu opartego na ogólnych zaleceniach populacyjnych w stronę wysoce
+spersonalizowanej medycyny żywieniowej, wspieranej przez zaawansowaną analitykę danych.
+Projektowanie systemów wspomagania decyzji dietetycznych (DSS – Dietary Support
+Systems) oraz autonomicznych botów żywieniowych nie jest już jedynie procesem translacji
+wiedzy biologicznej na prosty kod proceduralny. Stanowi ono wyzwanie inżynieryjne
+wymagające głębokiego zrozumienia stochastycznej natury metabolizmu człowieka,
+nieliniowych odpowiedzi hormonalnych oraz złożonych interakcji biochemicznych
+zachodzących pomiędzy składnikami odżywczymi. Niniejszy raport stanowi wyczerpującą,
+techniczną analizę algorytmów, protokołów klinicznych, struktur danych oraz zasad
+bezpieczeństwa niezbędnych do stworzenia bezpiecznego, skutecznego i etycznego systemu
+dietetycznego.
+Analiza ta opiera się na założeniu, że cyfrowy dietetyk nie może być jedynie kalkulatorem
+kalorii. Musi on emulować proces wnioskowania klinicznego (clinical reasoning), biorąc pod
+uwagę nie tylko termodynamikę (bilans energetyczny), ale również endokrynologię
+(insulinooporność, choroby tarczycy), psychodietetykę (relacje z jedzeniem) oraz logistykę
+kulinarną (sezonowość, zero waste). W raporcie zintegrowano najnowsze wytyczne
+towarzystw naukowych, w tym Polskiego Towarzystwa Diabetologicznego (2024) oraz
+standardy FAO/WHO, tworząc kompendium wiedzy dla architektów systemów e-zdrowia.
+2. Modelowanie Matematyczne Metabolizmu:
+Algorytmy Energetyczne
+Fundamentem każdego systemu dietetycznego jest precyzyjny model wydatkowania energii
+przez organizm ludzki. Błąd na etapie szacowania zapotrzebowania energetycznego ulega
+propagacji na wszystkie kolejne warstwy systemu – od rozkładu makroskładników, przez
+dobór produktów, aż po finalną gramaturę posiłku w przepisie. W inżynierii systemów
+żywieniowych wyróżniamy dwie kluczowe zmienne stanu: Podstawową Przemianę Materii
+(PPM/BMR) oraz Całkowitą Przemianę Materii (CPM/TDEE).
+2.1. Algorytmika Podstawowej Przemiany Materii (PPM)
+Podstawowa Przemiana Materii (ang. Basal Metabolic Rate, BMR) reprezentuje minimalny
+wydatek energetyczny niezbędny do podtrzymania podstawowych funkcji życiowych, takich
+jak oddychanie, praca mięśnia sercowego, aktywność neuronalna mózgu oraz transport jonów
+przez błony komórkowe, w warunkach spoczynkowych, na czczo i w komforcie cieplnym. Z
+punktu widzenia algorytmicznego, PPM jest funkcją masy ciała, wzrostu, wieku oraz płci.
+W literaturze naukowej i praktyce klinicznej funkcjonuje kilka modeli regresji służących do
+estymacji tej wartości. Wybór odpowiedniego algorytmu zależy od charakterystyki populacji
+docelowej oraz dostępności danych wejściowych.1
+2.1.1. Równanie Mifflina-St Jeora: Złoty Standard Kliniczny
+Opracowane w 1990 roku równanie Mifflina-St Jeora jest obecnie uznawane za najbardziej
+precyzyjny wzór dla populacji rasy kaukaskiej, zarówno dla osób o prawidłowej masie ciała, jak
+i osób z nadwagą oraz otyłością I stopnia. Badania walidacyjne wykazały, że błąd predykcji
+tego wzoru mieści się najczęściej w granicach ±10% względem kalorymetrii pośredniej, co
+czyni go domyślnym wyborem dla nowoczesnych aplikacji dietetycznych.
+Struktura matematyczna modelu przedstawia się następująco 1:
+● Dla mężczyzn:
+$$PPM = (10 \times \text{masa ciała [kg]}) + (6,25 \times \text{wzrost [cm]}) - (5 \times
+\text{wiek [lata]}) + 5$$
+● Dla kobiet:
+$$PPM = (10 \times \text{masa ciała [kg]}) + (6,25 \times \text{wzrost [cm]}) - (5 \times
+\text{wiek [lata]}) - 161$$
+Analiza współczynników i implikacje implementacyjne:
+Współczynnik przy masie ciała (10) jest identyczny dla obu płci, co odzwierciedla bazowy
+koszt metaboliczny utrzymania kilograma tkanki w spoczynku. Kluczowa różnica algorytmiczna
+objawia się w stałej końcowej (+5 dla mężczyzn vs -161 dla kobiet). Różnica ta, wynosząca 166
+kcal, wynika z fizjologicznego dymorfizmu płciowego. Mężczyźni genetycznie posiadają
+wyższy udział beztłuszczowej masy ciała (LBM – Lean Body Mass), która jest tkanką wysoce
+aktywną metabolicznie, podczas gdy kobiety posiadają fizjologicznie wyższy procent tkanki
+tłuszczowej, której koszt utrzymania jest niższy.
+Dla dewelopera oznacza to, że zmienna gender jest krytycznym parametrem wejściowym,
+którego błędne określenie prowadzi do systematycznego błędu w obliczeniach rzędu 150-200
+kcal/dobę, co może całkowicie zniwelować założony deficyt kaloryczny.
+2.1.2. Równanie Harrisa-Benedicta: Rys Historyczny i Zastosowanie
+Wzór Harrisa-Benedicta, pierwotnie opublikowany w 1919 roku i zrewidowany w 1984 roku
+przez Roza i Shizgal, był przez dekady standardem w dietetyce. Jednakże analizy
+porównawcze wskazują, że model ten wykazuje tendencję do przeszacowywania

@@ -101,7 +101,12 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       } else {
         if (!mounted) return;
-        await Navigator.of(context).pushReplacementNamed('/survey');
+        // Check if gender selected, if not show gender screen first
+        if (userProvider.gender == null) {
+          await Navigator.of(context).pushReplacementNamed('/gender');
+        } else {
+          await Navigator.of(context).pushReplacementNamed('/survey');
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -181,7 +186,12 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       } else {
         if (!mounted) return;
-        await Navigator.of(context).pushReplacementNamed('/survey');
+        // Check if gender selected, if not show gender screen first
+        if (userProvider.gender == null) {
+          await Navigator.of(context).pushReplacementNamed('/gender');
+        } else {
+          await Navigator.of(context).pushReplacementNamed('/survey');
+        }
       }
     } catch (e) {
       debugPrint('🔴 Google Sign-In error: $e');
@@ -261,7 +271,12 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       } else {
         if (!mounted) return;
-        await Navigator.of(context).pushReplacementNamed('/survey');
+        // Check if gender selected, if not show gender screen first
+        if (userProvider.gender == null) {
+          await Navigator.of(context).pushReplacementNamed('/gender');
+        } else {
+          await Navigator.of(context).pushReplacementNamed('/survey');
+        }
       }
     } catch (e) {
       if (mounted) {

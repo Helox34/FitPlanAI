@@ -49,13 +49,20 @@ class ProgressProvider with ChangeNotifier {
       final user = FirebaseAuth.instance.currentUser;
       
       if (user != null) {
-        // Load from Firestore if logged in
+        // Load from Firestore if logged in (with timeout)
         final snapshot = await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
             .collection('weight_history')
             .orderBy('date', descending: false)
-            .get();
+            .get()
+            .timeout(
+              const Duration(seconds: 5),
+              onTimeout: () {
+                debugPrint('⚠️ Progress Firestore timeout (offline?) - using fallback');
+                throw Exception('Firestore timeout');
+              },
+            );
 
         _weightEntries = snapshot.docs
             .map((doc) => ProgressEntry.fromJson(doc.data(), id: doc.id))
@@ -113,7 +120,13 @@ class ProgressProvider with ChangeNotifier {
           'date': date.toIso8601String(),
           'value': weight,
           'notes': null,
-        });
+        }).timeout(
+          const Duration(seconds: 5),
+          onTimeout: () {
+            debugPrint('⚠️ Add weight Firestore timeout - saving locally only');
+            throw Exception('Firestore timeout');
+          },
+        );
 
         final entry = ProgressEntry(id: docRef.id, date: date, value: weight);
         _weightEntries.add(entry);
@@ -155,7 +168,13 @@ class ProgressProvider with ChangeNotifier {
               .doc(user.uid)
               .collection('weight_history')
               .doc(entry.id)
-              .delete();
+              .delete()
+              .timeout(
+                const Duration(seconds: 5),
+                onTimeout: () {
+                  debugPrint('⚠️ Delete weight Firestore timeout - deleting locally only');
+                },
+              );
         } catch (e) {
           debugPrint('Error deleting from Firestore: $e');
         }

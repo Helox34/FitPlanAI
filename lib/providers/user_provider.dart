@@ -21,6 +21,7 @@ class UserProvider with ChangeNotifier {
   double? _height;
   String? _nickname;
   String? _avatarUrl;
+  String? _gender; // 'male', 'female', 'other'
   bool _surveyCompleted = false;
   
   // Subscription
@@ -42,6 +43,7 @@ class UserProvider with ChangeNotifier {
   double? get height => _height;
   String? get nickname => _nickname;
   String? get avatarUrl => _avatarUrl;
+  String? get gender => _gender;
   
   // Subscription Getters
   SubscriptionTier get subscriptionTier => _subscriptionTier;
@@ -103,13 +105,65 @@ class UserProvider with ChangeNotifier {
       _goalStartDate ??= DateTime.now(); // Set start if first time
     }
     
-    // In real app, save to Firestore here
-    // await _updateFirestore({...});
+    // Save to Firestore
+    await _updateFirestore({
+      'fitnessGoal': _fitnessGoal,
+      'goalWeight': _goalWeight,
+      'goalDeadline': _goalDeadline?.toIso8601String(),
+      'goalStartDate': _goalStartDate?.toIso8601String(),
+    });
     
     notifyListeners();
   }
   
+  // Initial Survey Methods
   bool get hasCompletedInitialSurvey => _surveyCompleted;
+  
+  Future<void> updateGender(String gender) async {
+    _gender = gender;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('gender', gender);
+    
+    // Save to Firestore if logged in
+    await _updateFirestore({'gender': gender});
+    
+    notifyListeners();
+  }
+  
+  Future<void> saveInitialSurvey({
+    required int age,
+    required double weight,
+    required double height,
+  }) async {
+    _age = age;
+    _weight = weight;
+    _height = height;
+    
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('age', age);
+    await prefs.setDouble('weight', weight);
+    await prefs.setDouble('height', height);
+    
+    // Save to Firestore if logged in
+    await _updateFirestore({
+      'age': age,
+      'weight': weight,
+      'height': height,
+    });
+    
+    notifyListeners();
+  }
+  
+  Future<void> markSurveyCompleted() async {
+    _surveyCompleted = true;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('survey_completed', true);
+    
+    // Save to Firestore if logged in
+    await _updateFirestore({'survey_completed': true});
+    
+    notifyListeners();
+  }
 
   // Firebase Auth
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -132,6 +186,7 @@ class UserProvider with ChangeNotifier {
       _height = prefs.getDouble('height');
       _nickname = prefs.getString('nickname');
       _avatarUrl = prefs.getString('avatar_url');
+      _gender = prefs.getString('gender'); // Load gender
       _surveyCompleted = prefs.getBool('survey_completed') ?? false;
       
       // Load Streak
@@ -262,16 +317,50 @@ class UserProvider with ChangeNotifier {
             await prefs.setString('user_nickname', _nickname!);
           }
           
+          // Load Goal Timeline data (Feature 3.1)
+          if (data['fitnessGoal'] != null) {
+            _fitnessGoal = data['fitnessGoal'];
+          }
+          if (data['goalWeight'] != null) {
+            _goalWeight = (data['goalWeight'] as num).toDouble();
+          }
+          if (data['goalDeadline'] != null) {
+            try {
+              _goalDeadline = DateTime.parse(data['goalDeadline']);
+            } catch (e) {
+              debugPrint('Error parsing goalDeadline: $e');
+            }
+          }
+          if (data['goalStartDate'] != null) {
+            try {
+              _goalStartDate = DateTime.parse(data['goalStartDate']);
+            } catch (e) {
+              debugPrint('Error parsing goalStartDate: $e');
+            }
+          }
+          
+          // Load Gender (NEW!)
+          if (data['gender'] != null) {
+            _gender = data['gender'];
+            await prefs.setString('gender', _gender!);
+          }
+          
+          // Load Avatar URL (NEW!)
+          if (data['avatarUrl'] != null) {
+            _avatarUrl = data['avatarUrl'];
+            await prefs.setString('avatar_url', _avatarUrl!);
+          }
+          
+          // Load Survey Completed flag (NEW!)
+          if (data['survey_completed'] != null || data['surveyCompleted'] != null) {
+            _surveyCompleted = data['survey_completed'] ?? data['surveyCompleted'] ?? false;
+            await prefs.setBool('survey_completed', _surveyCompleted);
+          }
+          
           // If we have these 3, survey is completed
           if (_age != null && _weight != null && _height != null) {
             _surveyCompleted = true;
             await prefs.setBool('survey_completed', true);
-          } else {
-            // Also check 'surveyCompleted' flag
-            if (data['surveyCompleted'] == true) {
-              _surveyCompleted = true;
-              await prefs.setBool('survey_completed', true);
-            }
           }
         }
       } else {
@@ -291,55 +380,20 @@ class UserProvider with ChangeNotifier {
     if (user == null) return;
     
     try {
+      // Add timeout to prevent hanging when offline
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
-          .set(data, SetOptions(merge: true));
+          .set(data, SetOptions(merge: true))
+          .timeout(
+            const Duration(seconds: 5),
+            onTimeout: () {
+              debugPrint('⚠️ Firestore update timeout (offline?) - continuing anyway');
+            },
+          );
     } catch (e) {
       debugPrint('Error updating Firestore: $e');
     }
-  }
-  
-  /// Save initial survey data (age, weight, height)
-  Future<void> saveInitialSurvey({
-    required int age,
-    required double weight,
-    required double height,
-  }) async {
-    _age = age;
-    _weight = weight;
-    _height = height;
-    _surveyCompleted = true;
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('user_age', age);
-    await prefs.setDouble('user_weight', weight);
-    await prefs.setDouble('user_height', height);
-    await prefs.setBool('survey_completed', true);
-
-    // Sync with Firestore
-    await _updateFirestore({
-      'age': age,
-      'weight': weight,
-      'height': height,
-      'surveyCompleted': true,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-
-    notifyListeners();
-  }
-
-  /// Mark initial survey as completed
-  Future<void> markSurveyCompleted() async {
-    _surveyCompleted = true;
-    
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('survey_completed', true);
-    
-    // Sync with Firestore
-    await _updateFirestore({'surveyCompleted': true});
-
-    notifyListeners();
   }
   
   /// Update nickname
