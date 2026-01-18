@@ -146,6 +146,7 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
                 // Content
                 Expanded(
                   child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(16),
                     children: [
                       // "Start Live Training" Button

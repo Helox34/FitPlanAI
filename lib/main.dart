@@ -7,7 +7,6 @@ import 'core/theme/app_theme.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/home/screens/main_shell.dart';
 import 'features/onboarding/screens/initial_survey_screen.dart';
-import 'features/onboarding/screens/gender_selection_screen.dart'; // Gender selection
 import 'features/onboarding/screens/ai_trust_screen.dart';  // Fitify Feature 3.2
 import 'features/legal/screens/terms_of_service_screen.dart';
 import 'features/legal/screens/privacy_policy_screen.dart';
@@ -72,7 +71,7 @@ class FitPlanAIApp extends StatelessWidget {
             home: const AppInitializer(),
             routes: {
               '/login': (context) => const LoginScreen(),
-              '/gender': (context) => const GenderSelectionScreen(), // Gender selection - FIRST
+              // '/gender' route removed - gender is now part of survey
               '/survey': (context) => const InitialSurveyScreen(),
               '/ai-trust': (context) => const AITrustScreen(),  // Fitify Feature 3.2
               '/home': (context) => MainShell(),
@@ -127,14 +126,10 @@ class _AppInitializerState extends State<AppInitializer> {
         // User is logged in, check survey
         if (userProvider.hasCompletedInitialSurvey) {
            Navigator.of(context).pushReplacementNamed('/home');
-        } else {
-           // NEW: Check if gender selected first, then survey
-           if (userProvider.gender == null) {
-             Navigator.of(context).pushReplacementNamed('/gender');
-           } else {
-             Navigator.of(context).pushReplacementNamed('/survey');
-           }
-        }
+         } else {
+           // Not completed survey -> go directly to survey (includes gender question)
+           Navigator.of(context).pushReplacementNamed('/survey');
+         }
       } else {
         // Not logged in -> Login Screen
         Navigator.of(context).pushReplacementNamed('/login');

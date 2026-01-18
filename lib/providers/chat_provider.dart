@@ -52,7 +52,7 @@ class ChatProvider with ChangeNotifier {
         greeting += 'Dzięki temu możemy przejść od razu do pytań o Twoje cele i preferencje żywieniowe.\n\n';
       }
       
-      greeting += 'Zacznijmy od pierwszego pytania:\n\n1. Jaka jest Twoja płeć?';
+      greeting += 'Zacznijmy od pierwszego pytania:\n\n1. Jaki jest Twój główny cel dietetyczny? (Redukcja wagi / Utrzymanie wagi / Budowa masy mięśniowej)';
     }
     
     final greetingMsg = ChatMessage(

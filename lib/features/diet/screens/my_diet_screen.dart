@@ -20,9 +20,9 @@ class MyDietScreen extends StatefulWidget {
 }
 
 class _MyDietScreenState extends State<MyDietScreen> {
-  int _selectedDayIndex = DateTime.now().weekday - 1; // 0 = Monday
-  // Initialize to the Monday of the current week
-  DateTime _currentWeekStart = DateTime.now().subtract(Duration(days: DateTime.now().weekday - 1));
+  int _selectedDayIndex = 0; // Start from Day 1 (today)
+  // Diet plan starts TODAY, not from week start
+  DateTime _planStartDate = DateTime.now();
   
   @override
   void initState() {
@@ -125,28 +125,100 @@ class _MyDietScreenState extends State<MyDietScreen> {
                 ),
               ),
               
-              // Day Selector (Calendar Strip)
+              // Day Selector - Modified for 30-day plans
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 color: theme.scaffoldBackgroundColor,
-                child: DaySelector(
-                  currentWeekStart: _currentWeekStart,
-                  selectedDayIndex: _selectedDayIndex,
-                  onDaySelected: (index) {
-                    setState(() {
-                      _selectedDayIndex = index;
-                    });
-                  },
-                  onPreviousWeek: () {
-                    setState(() {
-                      _currentWeekStart = _currentWeekStart.subtract(const Duration(days: 7));
-                    });
-                  },
-                  onNextWeek: () {
-                    setState(() {
-                      _currentWeekStart = _currentWeekStart.add(const Duration(days: 7));
-                    });
-                  },
+                child: Column(
+                  children: [
+                    // Week navigation for 30-day plan
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.chevron_left),
+                          onPressed: _selectedDayIndex >= 7 ? () {
+                            setState(() {
+                              _selectedDayIndex = (_selectedDayIndex - 7).clamp(0, plan.schedule.length - 1);
+                            });
+                          } : null,
+                        ),
+                        Text(
+                          'Tydzień ${(_selectedDayIndex ~/ 7) + 1}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_right),
+                          onPressed: _selectedDayIndex + 7 < plan.schedule.length ? () {
+                            setState(() {
+                              _selectedDayIndex = (_selectedDayIndex + 7).clamp(0, plan.schedule.length - 1);
+                            });
+                          } : null,
+                        ),
+                      ],
+                    ),
+                    // Day buttons for current week
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: List.generate(
+                          7.clamp(0, plan.schedule.length - (_selectedDayIndex ~/ 7) * 7),
+                          (index) {
+                            final dayIndex = (_selectedDayIndex ~/ 7) * 7 + index;
+                            final date = _planStartDate.add(Duration(days: dayIndex));
+                            final isSelected = dayIndex == _selectedDayIndex;
+                            final isToday = dayIndex == 0;
+                            
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              child: InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    _selectedDayIndex = dayIndex;
+                                  });
+                                },
+                                child: Container(
+                                  width: 60,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? const Color(0xFF10B981)
+                                        : (isToday ? const Color(0xFF10B981).withOpacity(0.1) : null),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: isToday && !isSelected
+                                        ? Border.all(color: const Color(0xFF10B981), width: 2)
+                                        : null,
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Niedz'][date.weekday - 1],
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: isSelected
+                                              ? Colors.white
+                                              : colorScheme.onSurface.withOpacity(0.6),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '${date.day}',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: isSelected ? Colors.white : colorScheme.onSurface,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               
@@ -165,19 +237,17 @@ class _MyDietScreenState extends State<MyDietScreen> {
   
   Widget _buildDayContent(GeneratedPlan plan, int dayIndex) {
     final colorScheme = Theme.of(context).colorScheme;
-    // Generate day names dynamically if more than 7
-    final List<String> dayNames;
-    if (plan.schedule.length <= 7) {
-      dayNames = ['Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota', 'Niedziela'];
-    } else {
-      dayNames = List.generate(plan.schedule.length, (i) => 'Dzień ${i + 1}');
+    
+    // Validate day index
+    if (dayIndex < 0 || dayIndex >= plan.schedule.length) {
+      return EmptyPlanWidget(
+        mode: CreatorMode.DIET,
+        onGeneratePlan: _navigateToProgressTab,
+      );
     }
     
-    // Find the day in the schedule
-    PlanDay? planDay;
-    if (dayIndex < plan.schedule.length) {
-      planDay = plan.schedule[dayIndex];
-    }
+    final planDay = plan.schedule[dayIndex];
+    final date = _planStartDate.add(Duration(days: dayIndex));
     
     if (planDay == null || planDay.items.isEmpty) {
       return EmptyPlanWidget(

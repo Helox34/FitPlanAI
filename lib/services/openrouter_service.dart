@@ -519,16 +519,17 @@ INTELIGENTNE POMIJANIE PYTAŃ:
 - Jeśli użytkownik podał informacje z wyprzedzeniem, potwierdź je i przejdź do następnego niepokrytego pytania
 
 ZAKOŃCZENIE WYWIADU:
-- Jeśli masz już odpowiedzi na WSZYSTKIE pytania (1, 5-30, pomijając 2-4), ZAKOŃCZ wywiad
+- Jeśli masz już odpowiedzi na WSZYSTKIE pytania (5-30, pomijając 1-4), ZAKOŃCZ wywiad
 - Napisz: "Dziękuję! Mam już wszystkie potrzebne informacje. Możesz teraz kliknąć przycisk 'Generuj dietę' aby stworzyć Twój spersonalizowany plan żywieniowy."
 - NIE zadawaj więcej pytań jeśli masz już wszystkie odpowiedzi
 
 DANE JUŻ ZNANE (nie pytaj o nie):
 - Wiek, wzrost, waga użytkownika są już znane z wcześniejszej ankiety
+- PŁEĆ jest również znana - NIE pytaj o płeć!
 
 Lista pytań dietetycznych do zadania:
-I. Dane podstawowe i cel (7 pytań)
-1. Jaka jest Twoja płeć?
+I. Dane podstawowe i cel (6 pytań - POMIŃ płeć!)
+1. [POMINIĘTE - znana płeć z survey]
 2. [POMINIĘTE - znany wiek]
 3. [POMINIĘTE - znany wzrost]
 4. [POMINIĘTE - znana waga]
@@ -608,7 +609,7 @@ $conversationText
       return '''
 **CRITICAL: Your response MUST be ONLY valid JSON. Do NOT include any text before or after the JSON object. Start directly with { and end with }.**
 
-**CRITICAL: Plan MUSI zawierać DOKŁADNIE 14 DNI (schedule array = 14 elements). Każdy dzień to "Dzień 1", "Dzień 2", ... "Dzień 14".**
+**CRITICAL: Plan MUSI zawierać DOKŁADNIE 30 DNI (schedule array = 30 elements). Każdy dzień to "Dzień 1", "Dzień 2", ... "Dzień 30". To jest PEŁNY MIESIĘCZNY plan żywieniowy.**
 
 Jesteś ekspertem dietetyki klinicznej i inżynierii żywieniowej. Twoja rola to stworzenie SPERSONALIZOWANEGO, NAUKOWO OPARTEGO planu dietetycznego, który nie jest zwykłym kalkulatorem kalorii, ale emuluje pełne wnioskowanie kliniczne (clinical reasoning).
 
@@ -717,60 +718,80 @@ Musisz BEZWZGLĘDNIE uwzględnić jednostki chorobowe i ograniczenia:
 ═══════════════════════════════════════════════════════════
 
 Wytyczne strukturalne:
-1. Plan na **14 DNI** (2 tygodnie) - tablica schedule MUSI mieć 14 elementów
+1. Plan na **30 DNI** (pełny miesiąc) - tablica schedule MUSI mieć 30 elementów
 2. Każdy dzień: 4-5 posiłków (śniadanie, II śniadanie, obiad, podwieczorek, kolacja)
 3. **Gramatura konkretna** - np. "150g piersi kurczaka, 80g ryżu, 10ml oliwy"
 4. **Kalorie i makro PER POSIŁEK** w polu note, np: "520 kcal | B: 45g W: 52g T: 12g"
 5. **Tips:** Krótkie (max 10 słów), praktyczne, np: "Podgrzej 2 min mikrofalówce"
-6. **Różnorodność:** Nie powtarzaj tych samych posiłków \u003e3 dni pod rząd
+6. **Różnorodność:** Nie powtarzaj tych samych posiłków >3 dni pod rząd
 7. **Sezonowość i dostępność:** Polski rynek, produkty dostępne przez cały rok
 8. **Zero waste:** Wykorzystuj składniki z poprzednich dni (np. kurczak dzień 1→sałatka dzień 2)
+9. **Cykliczność:** W razie potrzeby powtórz udane posiłki w tygodniach 3-4 (z małymi wariacjami)
 
 ═══════════════════════════════════════════════════════════
 📈 PROGNOZY WAGI - SCIENTIFIC PROJECTIONS (CRITICAL!)
 ═══════════════════════════════════════════════════════════
 
-**TY MUSISZ wygenerować realistyczną 14-tygodniową prognozę wagi w polu `progress.dataPoints`!**
+**TY MUSISZ wygenerować realistyczną 12-tygodniową prognozę wagi w polu `progress.dataPoints`!**
+**🚨 CRITICAL: CEL UŻYTKOWNIKA DYKTUJE KIERUNEK! 🚨**
 
-KROK 1: OBLICZ TYGODNIOWĄ ZMIANĘ WAGI
+KROK 1: ODCZYTAJ CEL UŻYTKOWNIKA Z DANYCH
+- Szukaj w `structuredData` pola związanego z celem ("cel", "goal", "Jaki jest Twój główny cel")
+- Możliwe wartości: "Redukcja wagi" / "Utrzymanie wagi" / "Budowa masy mięśniowej"
 
-**Dla REDUKCJI:**
+KROK 2: OBLICZ TYGODNIOWĄ ZMIANĘ WAGI
+
+**Dla REDUKCJI (utrata wagi) - WARTOŚCI MALEJĄ ⬇️:**
 - Deficyt: 300-500 kcal/dzień = 2100-3500 kcal/tydzień
 - 1 kg tłuszczu ≈ 7700 kcal
 - **Tygodniowa utrata:** 2100-3500 ÷ 7700 = 0.27-0.45 kg
-- **Procentowo:** -0.5% do -1% masy/tydzień
-- **Przykład:** 80kg → -0.4 kg/tydzień
+- **Procentowo:** -0.5% do -1% masy/tydzień (MINUS!)
+- **Przykład:** 80kg → 80 - 0.4 = 79.6 kg (tydzień 1), 79.6 - 0.4 = 79.2 kg (tydzień 2)
 
-**Dla MASY:**
+**Dla MASY (przyrost) - WARTOŚCI ROSNĄ ⬆️:**
 - Nadwyżka: 200-500 kcal/dzień
-- **Przyrost:** +0.25% do +0.5% masy/tydzień
-- **Przykład:** 70kg → +0.25 kg/tydzień
+- **Przyrost:** +0.25% do +0.5% masy/tydzień (PLUS!)
+- **Przykład:** 70kg → 70 + 0.25 = 70.25 kg (tydzień 1), 70.25 + 0.25 = 70.5 kg (tydzień 2)
 
-KROK 2: WYGENERUJ 14 DATA POINTS
+**Dla UTRZYMANIA:**
+- Waga pozostaje stabilna ±0.3 kg (fluktuacje wody)
+
+KROK 3: WYGENERUJ 12 DATA POINTS
 
 Format JSON:
 ```json
 "progress": {
   "dataPoints": [
-    {"week": 1, "value": 79.6, "type": "projected"},
-    {"week": 2, "value": 79.2, "type": "projected"},
+    {"week": 1, "value": [OBLICZONA_WAGA_TYG_1], "type": "projected"},
+    {"week": 2, "value": [OBLICZONA_WAGA_TYG_2], "type": "projected"},
     ...
-    {"week": 14, "value": 74.4, "type": "projected"}
+    {"week": 12, "value": [OBLICZONA_WAGA_TYG_12], "type": "projected"}
   ]
 }
 ```
 
-**RULES:**
+**VALIDATION RULES:**
 1. LINEAR progression - nie exponential!
-2. Start from current weight minus pierwsza zmiana
-3. 14 data points (weeks 1-14)
-4. type MUSI być "projected"
+2. 12 data points (weeks 1-12)
+3. type MUSI być "projected"
+4. **KIERUNEK musi być zgodny z celem:**
+   - REDUKCJA: value[12] < value[1] < currentWeight ✅
+   - MASA: value[12] > value[1] > currentWeight ✅
+   - UTRZYMANIE: value[12] ≈ currentWeight ± 0.5 kg ✅
 
-**PRZYKŁAD (80kg, redukcja, -0.4kg/tydzień):**
-- Week 1: 79.6
-- Week 2: 79.2
-- Week 3: 78.8
-- Week 14: 74.8
+**PRZYKŁADY:**
+
+Przykład 1 (REDUKCJA, 80kg, -0.4kg/tydzień):
+- Week 1: 79.6 (80 - 0.4)
+- Week 2: 79.2 (79.6 - 0.4)
+- Week 3: 78.8 (79.2 - 0.4)
+- Week 12: 75.2 (80 - 12*0.4) ✅ Spada!
+
+Przykład 2 (MASA, 70kg, +0.3kg/tydzień):
+- Week 1: 70.3 (70 + 0.3)
+- Week 2: 70.6 (70.3 + 0.3)  
+- Week 3: 70.9 (70.6 + 0.3)
+- Week 12: 73.6 (70 + 12*0.3) ✅ Rośnie!
 
 ═══════════════════════════════════════════════════════════
 
@@ -839,9 +860,7 @@ Zwróć JSON w formacie:
       { "week": 9, "value": number, "type": "projected" },
       { "week": 10, "value": number, "type": "projected" },
       { "week": 11, "value": number, "type": "projected" },
-      { "week": 12, "value": number, "type": "projected" },
-      { "week": 13, "value": number, "type": "projected" },
-      { "week": 14, "value": number, "type": "projected" }
+      { "week": 12, "value": number, "type": "projected" }
     ]
   }
 }
@@ -853,7 +872,7 @@ Zwróć JSON w formacie:
     return '''
 **CRITICAL: Your response MUST be ONLY valid JSON. Do NOT include any text before or after the JSON object. Start directly with { and end with }.**
 
-**CRITICAL: Plan MUSI zawierać DOKŁADNIE 14 DNI (schedule array = 14 elements). Każdy dzień to "Dzień 1", "Dzień 2", ... "Dzień 14".**
+**CRITICAL: Plan MUSI zawierać DOKŁADNIE 14 DNI (schedule array = 14 elements). Każdy dzień to "Dzień 1", "Dzień 2", ... "Dzień 14". Workout plans pozostają 2-tygodniowe.**
 
 Jesteś ekspertem inżynierii treningowej (S&C Coach) i głównym architektem systemu progresji w aplikacji FitPlan AI.
 Twój cel: Stworzyć "żywy", adaptacyjny plan treningowy na 14 DNI (2 mikrocykle), który zmusi organizm użytkownika do rozwoju (Progressive Overload), unikając stagnacji i "śmieciowej objętości" (Junk Volume).

@@ -36,7 +36,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
   void _checkPrompts() {
     final provider = context.read<ProgressProvider>();
-    if (provider.shouldPromptWeight) {
+    if (provider.shouldPromptWeightForUser(null)) {
       _showEntryDialog(isWeight: true, title: 'Czas na pomiar wagi!', subtitle: 'Minął tydzień od ostatniego wpisu.');
     }
   }

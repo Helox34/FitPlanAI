@@ -15,12 +15,17 @@ class ProgressProvider with ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
-  // Check if we need to prompt the user (if > 7 days since last entry)
-  bool get shouldPromptWeight {
-    if (_weightEntries.isEmpty) return true;
+  // Check if we need to prompt the user - ONLY if they have entries and 7+ days passed
+  // Don't prompt if no entries (just registered)
+  bool shouldPromptWeightForUser(DateTime? registrationDate) {
+    // No entries = just registered or never logged weight -> DON'T prompt
+    if (_weightEntries.isEmpty) return false;
+    
+    // Has entries - check if 7+ days since last entry
     final lastDate = _weightEntries.last.date;
     return DateTime.now().difference(lastDate).inDays >= 7;
   }
+
 
   bool get shouldPromptStrength {
     if (_strengthEntries.isEmpty) return true;
