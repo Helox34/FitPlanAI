@@ -160,14 +160,56 @@ class PlanProvider with ChangeNotifier {
         // ---------------------------------------
         
       } else {
-        _dietPlan = plan;
+        // DIET PLAN - Duplicate 7 days to 28 days (4 weeks)
+        if (plan.schedule.length == 7) {
+          debugPrint('📅 Expanding 7-day diet plan to 28 days (4 weeks)...');
+          
+          final weeklySchedule = List<PlanDay>.from(plan.schedule);
+          final expandedSchedule = <PlanDay>[];
+          
+          // Replicate the week 4 times (28 days total)
+          for (int week = 0; week < 4; week++) {
+            for (int day = 0; day < 7; day++) {
+              final originalDay = weeklySchedule[day];
+              final dayNumber = week * 7 + day + 1;
+              
+              // Create copy with updated day name
+              expandedSchedule.add(
+                PlanDay(
+                  dayName: 'Tydzień ${week + 1} - Dzień ${day + 1}',
+                  items: originalDay.items.map((item) => PlanItem(
+                    name: item.name,
+                    details: item.details,
+                    note: item.note,
+                    tips: item.tips,
+                  )).toList(),
+                  summary: originalDay.summary,
+                ),
+              );
+            }
+          }
+          
+          // Create new plan with expanded schedule
+          _dietPlan = GeneratedPlan(
+            mode: plan.mode,
+            title: plan.title,
+            description: plan.description,
+            schedule: expandedSchedule,
+            progress: plan.progress,
+          );
+          
+          debugPrint('✅ Expanded to ${expandedSchedule.length} days');
+        } else {
+          _dietPlan = plan;
+        }
       }
       
       // Persist to local storage
-      await PlanService.savePlan(plan);
+      final planToSave = mode == CreatorMode.WORKOUT ? _workoutPlan! : _dietPlan!;
+      await PlanService.savePlan(planToSave);
       
       // Persist to Cloud
-      await _savePlanToFirestore(plan);
+      await _savePlanToFirestore(planToSave);
       
       _isGenerating = false;
       notifyListeners();
@@ -259,6 +301,44 @@ class PlanProvider with ChangeNotifier {
       await PlanService.savePlan(_workoutPlan!);
       await _savePlanToFirestore(_workoutPlan!);
       debugPrint('✅ Exercise replaced and saved');
+    } catch (e) {
+      debugPrint('❌ Error saving modified plan: $e');
+    }
+  }
+  
+  /// Replace a single meal in the diet plan
+  Future<void> replaceMeal({
+    required int dayIndex,
+    required int mealIndex,
+    required PlanItem newMeal,
+  }) async {
+    if (_dietPlan == null) {
+      debugPrint('❌ Cannot replace meal: no diet plan loaded');
+      return;
+    }
+    
+    if (dayIndex < 0 || dayIndex >= _dietPlan!.schedule.length) {
+      debugPrint('❌ Invalid dayIndex: $dayIndex');
+      return;
+    }
+    
+    final day = _dietPlan!.schedule[dayIndex];
+    if (mealIndex < 0 || mealIndex >= day.items.length) {
+      debugPrint('❌ Invalid mealIndex: $mealIndex');
+      return;
+    }
+    
+    // Replace the meal
+    day.items[mealIndex] = newMeal;
+    
+    // Update the plan
+    notifyListeners();
+    
+    // Save to storage
+    try {
+      await PlanService.savePlan(_dietPlan!);
+      await _savePlanToFirestore(_dietPlan!);
+      debugPrint('✅ Meal replaced and saved');
     } catch (e) {
       debugPrint('❌ Error saving modified plan: $e');
     }

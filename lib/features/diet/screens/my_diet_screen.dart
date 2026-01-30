@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
-import '../../home/screens/main_shell.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/models/models.dart';
-import '../../../core/widgets/empty_plan_widget.dart';
 import '../../../providers/plan_provider.dart';
-import '../../onboarding/screens/plan_type_selection_screen.dart';
-import '../../onboarding/screens/plan_type_selection_screen.dart';
+import '../../../providers/user_provider.dart';
+import '../../../core/widgets/empty_plan_widget.dart';
+import '../../../services/meal_replacement_service.dart';
+import '../../../core/widgets/worm_loader.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../workout/widgets/day_selector.dart';
 import '../../../core/widgets/worm_loader.dart';
@@ -34,10 +36,11 @@ class _MyDietScreenState extends State<MyDietScreen> {
   
   void _navigateToProgressTab() {
     // Switch to Progress tab (index 2)
-    final mainShellState = context.findAncestorStateOfType<MainShellState>();
-    if (mainShellState != null) {
-      mainShellState.changeTab(2); // Progress tab is at index 2
-    }
+    // TODO: Implement tab navigation without MainShellState
+    // final mainShellState = context.findAncestorStateOfType<MainShellState>();
+    // if (mainShellState != null) {
+    //   mainShellState.changeTab(2); // Progress tab is at index 2
+    // }
   }
   
   @override
@@ -402,8 +405,210 @@ class _MyDietScreenState extends State<MyDietScreen> {
               ),
             ),
           ],
+          // Change Meal Button
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: () => _showMealAlternativesDialog(context, item, number),
+            icon: const Icon(Icons.sync, size: 18),
+            label: const Text('Zmień posiłek'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF10B981),
+              side: const BorderSide(color: Color(0xFF10B981)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _showMealAlternativesDialog(BuildContext context, PlanItem currentMeal, int mealIndex) async {
+    final planProvider = context.read<PlanProvider>();
+    BuildContext? loadingDialogContext;
+    
+    // Build user context
+    final userContext = {
+      'goal': 'Redukcja wagi', // TODO: Get from user data
+      'calories_target': 2000, // TODO: Calculate from user data
+    };
+
+    try {
+      // Capture the dialog context for later use
+      BuildContext? loadingDialogContext;
+      
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) {
+          loadingDialogContext = ctx;
+          return Dialog(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Alternatywne posiłki',
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Szukamy zamienników dla: ${currentMeal.name}',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                  ),
+                  const SizedBox(height: 24),
+                  WormLoader(size: 40),
+                  const SizedBox(height: 16),
+                  const Text('Generowanie alternatyw...'),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+
+      final service = MealReplacementService();
+      final alternatives = await service.generateMealAlternatives(
+        currentMeal: currentMeal,
+        userContext: userContext,
+      );
+
+      if (!context.mounted) return;
+      if (loadingDialogContext != null) {
+        Navigator.pop(loadingDialogContext!); // Close loading dialog
+      }
+
+      // Show alternatives selection dialog
+      showDialog(
+        context: context,
+        builder: (selectContext) => Dialog(
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.restaurant_menu, color: Color(0xFF10B981)),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Wybierz zamiennik',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(selectContext),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: alternatives.length,
+                    itemBuilder: (context, index) {
+                      final alt = alternatives[index];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        child: InkWell(
+                          onTap: () async {
+                            Navigator.pop(selectContext);
+                            // Replace meal
+                            await planProvider.replaceMeal(
+                              dayIndex: _selectedDayIndex,
+                              mealIndex: mealIndex - 1, // Convert from 1-indexed to 0-indexed
+                              newMeal: alt,
+                            );
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Zamieniono na: ${alt.name}'),
+                                  backgroundColor: const Color(0xFF10B981),
+                                ),
+                              );
+                            }
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  alt.name,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  alt.details,
+                                  style: TextStyle(color: Colors.grey[700]),
+                                ),
+                                if (alt.note != null) ...[
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[100],
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      alt.note!,
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                                ],
+                                if (alt.tips != null) ...[
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.lightbulb_outline,
+                                        size: 16,
+                                        color: Color(0xFF10B981),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          alt.tips!,
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontStyle: FontStyle.italic,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted || loadingDialogContext == null) return;
+      Navigator.pop(loadingDialogContext); // Close loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Błąd: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }

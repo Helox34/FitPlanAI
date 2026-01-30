@@ -42,6 +42,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
         userAge: userProvider.age,
         userHeight: userProvider.height,
         userWeight: userProvider.weight,
+        userGender: userProvider.gender,
       );
       
       // Add listener for auto-scroll when new messages arrive

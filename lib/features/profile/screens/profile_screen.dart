@@ -1126,9 +1126,208 @@ class _ProfileScreenState extends State<ProfileScreen> {
               }
             },
           ),
+          _buildGenderItem(),
           const SizedBox(height: 8),
         ],
       ],
+    );
+  }
+
+  Widget _buildGenderItem() {
+    final user = context.watch<UserProvider>();
+    final gender = user.gender;
+    final colorScheme = Theme.of(context).colorScheme;
+    
+    String genderLabel = 'Nie wybrano';
+    IconData genderIcon = Icons.help_outline;
+    Color genderColor = Colors.grey;
+    
+    if (gender == 'male') {
+      genderLabel = 'Mężczyzna';
+      genderIcon = Icons.male;
+      genderColor = const Color(0xFF3B82F6);
+    } else if (gender == 'female') {
+      genderLabel = 'Kobieta';
+      genderIcon = Icons.female;
+      genderColor = const Color(0xFFEC4899);
+    }
+    
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 70,
+            child: Text(
+              'Płeć',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onSurface,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Container(
+              height: 48,
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.light 
+                    ? Colors.grey[100] 
+                    : AppColors.surfaceVariantDark,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Icon(genderIcon, color: genderColor, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    genderLabel,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.normal,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            height: 32,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8F5E9),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: TextButton(
+              onPressed: () => _showGenderPicker(context),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                foregroundColor: AppColors.primary,
+              ),
+              child: const Text(
+                'Zmień',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showGenderPicker(BuildContext context) {
+    final user = context.read<UserProvider>();
+    String? selectedGender = user.gender;
+    
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Wybierz płeć'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Female option
+            Card(
+              color: selectedGender == 'female' ? const Color(0xFFEC4899).withOpacity(0.1) : null,
+              child: InkWell(
+                onTap: () {
+                  user.updateGender('female');
+                  Navigator.pop(dialogContext);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Płeć zaktualizowana: Kobieta'),
+                      backgroundColor: AppColors.success,
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEC4899).withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.female,
+                          color: Color(0xFFEC4899),
+                          size: 32,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      const Text(
+                        'Kobieta',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Male option
+            Card(
+              color: selectedGender == 'male' ? const Color(0xFF3B82F6).withOpacity(0.1) : null,
+              child: InkWell(
+                onTap: () {
+                  user.updateGender('male');
+                  Navigator.pop(dialogContext);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Płeć zaktualizowana: Mężczyzna'),
+                      backgroundColor: AppColors.success,
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF3B82F6).withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.male,
+                          color: Color(0xFF3B82F6),
+                          size: 32,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      const Text(
+                        'Mężczyzna',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Anuluj'),
+          ),
+        ],
+      ),
     );
   }
 

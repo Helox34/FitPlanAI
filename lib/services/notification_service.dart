@@ -132,12 +132,13 @@ class NotificationService {
   // WATER REMINDERS via User Settings
   // ===========================================================================
   
-  /// IDs: 201, 202, 203
+  /// IDs: 201, 202, 203, 204
   Future<void> scheduleWaterReminders(bool enable) async {
     if (!enable) {
       await flutterLocalNotificationsPlugin.cancel(201);
       await flutterLocalNotificationsPlugin.cancel(202);
       await flutterLocalNotificationsPlugin.cancel(203);
+      await flutterLocalNotificationsPlugin.cancel(204);
       return;
     }
 
@@ -160,6 +161,13 @@ class NotificationService {
       title: 'Uzupełnij płyny 💧', 
       body: 'Pamiętaj o wodzie po treningu i przed snem.', 
       hour: 18, minute: 30
+    );
+    
+    await _scheduleDaily(
+      id: 204, 
+      title: 'Ostatnia szklanka wody 💧', 
+      body: 'Napij się przed snem dla lepszej regeneracji.', 
+      hour: 20, minute: 0
     );
   }
 

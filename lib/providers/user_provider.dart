@@ -520,6 +520,66 @@ class UserProvider with ChangeNotifier {
     notifyListeners();
   }
   
+  /// Schedule all user notifications based on their preferences
+  /// Called automatically after login and permission grant
+  Future<void> scheduleUserNotifications() async {
+    debugPrint('📅 Scheduling user notifications...');
+    debugPrint('   - notifyApp: $_notifyApp');
+    debugPrint('   - notifyWater: $_notifyWater');
+    debugPrint('   - notifyPlan: $_notifyPlan');
+    debugPrint('   - notifyDiet: $_notifyDiet');
+    
+    final notificationService = NotificationService();
+    
+    // Verify NotificationService is initialized
+    if (!notificationService.isInitialized) {
+      debugPrint('⚠️ NotificationService not initialized - initializing now...');
+      await notificationService.initialize();
+    }
+    
+    // Schedule based on user preferences
+    if (_notifyApp && _notifyWater) {
+      debugPrint('💧 Scheduling water reminders...');
+      await notificationService.scheduleWaterReminders(true);
+    } else {
+      await notificationService.scheduleWaterReminders(false);
+    }
+    
+    if (_notifyApp && _notifyPlan) {
+      debugPrint('💪 Scheduling training reminders...');
+      await notificationService.scheduleTrainingReminder(true);
+    } else {
+      await notificationService.scheduleTrainingReminder(false);
+    }
+    
+    if (_notifyApp && _notifyDiet) {
+      debugPrint('🍽️ Scheduling diet reminders...');
+      await notificationService.scheduleDietReminders(true);
+    } else {
+      await notificationService.scheduleDietReminders(false);
+    }
+    
+    // Verify scheduled notifications
+    await _verifyScheduledNotifications();
+    
+    debugPrint('✅ All user notifications scheduled successfully');
+  }
+
+  /// Verify and log currently scheduled notifications
+  Future<void> _verifyScheduledNotifications() async {
+    try {
+      final notificationService = NotificationService();
+      final pending = await notificationService.flutterLocalNotificationsPlugin.pendingNotificationRequests();
+      
+      debugPrint('📋 Currently scheduled notifications: ${pending.length}');
+      for (var notif in pending) {
+        debugPrint('   - ID: ${notif.id}, Title: ${notif.title}');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Could not verify scheduled notifications: $e');
+    }
+  }
+  
   /// Set user profile (for Firebase Auth)
   void setProfile(UserProfile profile) {
     _profile = profile;

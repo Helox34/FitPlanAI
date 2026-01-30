@@ -609,9 +609,9 @@ $conversationText
       return '''
 **CRITICAL: Your response MUST be ONLY valid JSON. Do NOT include any text before or after the JSON object. Start directly with { and end with }.**
 
-**CRITICAL: Plan MUSI zawierać DOKŁADNIE 30 DNI (schedule array = 30 elements). Każdy dzień to "Dzień 1", "Dzień 2", ... "Dzień 30". To jest PEŁNY MIESIĘCZNY plan żywieniowy.**
+**CRITICAL: Plan MUSI zawierać DOKŁADNIE 7 DNI (schedule array = 7 elements). Każdy dzień to "Dzień 1", "Dzień 2", ... "Dzień 7". To jest TYGODNIOWY plan żywieniowy, który zostanie powielony na cały miesiąc.**
 
-Jesteś ekspertem dietetyki klinicznej i inżynierii żywieniowej. Twoja rola to stworzenie SPERSONALIZOWANEGO, NAUKOWO OPARTEGO planu dietetycznego, który nie jest zwykłym kalkulatorem kalorii, ale emuluje pełne wnioskowanie kliniczne (clinical reasoning).
+Jesteś ekspertem dietetyki klinicznej i inżynierii żywieniowej. Twoja rola to stworzenie SPERSONALIZOWANEGO, NAUKOWO OPARTEGO planu dietetycznego na TYDZIEŃ, który nie jest zwykłym kalkulatorem kalorii, ale emuluje pełne wnioskowanie kliniczne (clinical reasoning).
 
 DANE UŻYTKOWNIKA (zweryfikowane):
 \${jsonEncode(structuredData)}
@@ -718,15 +718,15 @@ Musisz BEZWZGLĘDNIE uwzględnić jednostki chorobowe i ograniczenia:
 ═══════════════════════════════════════════════════════════
 
 Wytyczne strukturalne:
-1. Plan na **30 DNI** (pełny miesiąc) - tablica schedule MUSI mieć 30 elementów
+1. Plan na **7 DNI** (jeden tydzień) - tablica schedule MUSI mieć 7 elementów
 2. Każdy dzień: 4-5 posiłków (śniadanie, II śniadanie, obiad, podwieczorek, kolacja)
 3. **Gramatura konkretna** - np. "150g piersi kurczaka, 80g ryżu, 10ml oliwy"
 4. **Kalorie i makro PER POSIŁEK** w polu note, np: "520 kcal | B: 45g W: 52g T: 12g"
 5. **Tips:** Krótkie (max 10 słów), praktyczne, np: "Podgrzej 2 min mikrofalówce"
-6. **Różnorodność:** Nie powtarzaj tych samych posiłków >3 dni pod rząd
+6. **Różnorodność:** Każdy dzień tygodnia powinien być unikalny
 7. **Sezonowość i dostępność:** Polski rynek, produkty dostępne przez cały rok
-8. **Zero waste:** Wykorzystuj składniki z poprzednich dni (np. kurczak dzień 1→sałatka dzień 2)
-9. **Cykliczność:** W razie potrzeby powtórz udane posiłki w tygodniach 3-4 (z małymi wariacjami)
+8. **Zero waste:** Wykorzystuj składniki między dniami (np. kurczak dzień 1→sałatka dzień 2)
+9. **Balans:** Tydzień powinien być zrównoważony pod kątem różnych źródeł białka i węglowodanów
 
 ═══════════════════════════════════════════════════════════
 📈 PROGNOZY WAGI - SCIENTIFIC PROJECTIONS (CRITICAL!)

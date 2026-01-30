@@ -68,6 +68,8 @@ class FitPlanAIApp extends StatelessWidget {
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: userProvider.themeMode,
+            themeAnimationDuration: const Duration(milliseconds: 300),
+            themeAnimationCurve: Curves.easeInOut,
             home: const AppInitializer(),
             routes: {
               '/login': (context) => const LoginScreen(),
@@ -110,11 +112,18 @@ class _AppInitializerState extends State<AppInitializer> {
     await context.read<PlanProvider>().loadPlans();
     await context.read<ProgressProvider>().loadProgress();
 
-    // Request Notification Permissions (Safe)
+    // Request Notification Permissions & Schedule Notifications
     try {
-       await NotificationService().requestPermissions();
+      debugPrint('🔔 Requesting notification permissions...');
+      await NotificationService().requestPermissions();
+      
+      // If user is logged in, schedule their notifications
+      if (userProvider.isLoggedIn) {
+        debugPrint('👤 User is logged in - scheduling notifications...');
+        await userProvider.scheduleUserNotifications();
+      }
     } catch (e) {
-       debugPrint('Error requesting permissions: $e');
+      debugPrint('❌ Error with notifications: $e');
     }
 
     // Give Firebase a moment to restore session if any

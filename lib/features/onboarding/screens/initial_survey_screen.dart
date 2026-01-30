@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/custom_text_field.dart';
 import '../../../providers/user_provider.dart';
+import '../../../providers/progress_provider.dart';
 import '../../home/screens/main_shell.dart';
 
 /// Initial 4-question survey screen (gender, age, weight, height)
@@ -80,7 +81,6 @@ class _InitialSurveyScreenState extends State<InitialSurveyScreen> {
       await userProvider.updateGender(_selectedGender!);
       print('✅ Gender saved');
       
-      // Save survey data
       print('🟢 Saving survey data...');
       await userProvider.saveInitialSurvey(
         age: int.parse(_ageController.text),
@@ -88,6 +88,12 @@ class _InitialSurveyScreenState extends State<InitialSurveyScreen> {
         height: double.parse(_heightController.text),
       );
       print('✅ Survey data saved');
+      
+      // Add weight entry to progress provider
+      print('🟢 Adding weight entry to progress...');
+      final weight = double.parse(_weightController.text);
+      await context.read<ProgressProvider>().addWeightEntry(weight);
+      print('✅ Weight entry added');
       
       // Mark survey as completed
       print('🟢 Marking survey as completed...');

@@ -17,7 +17,7 @@ class ChatProvider with ChangeNotifier {
   bool get isInterviewComplete => _isInterviewComplete;
   
   /// Start a new interview with the specified mode
-  Future<void> startInterview(CreatorMode mode, {int? userAge, double? userHeight, double? userWeight}) async {
+  Future<void> startInterview(CreatorMode mode, {int? userAge, double? userHeight, double? userWeight, String? userGender}) async {
     _currentMode = mode;
     _messages.clear();
     _isInterviewComplete = false;
@@ -27,32 +27,40 @@ class ChatProvider with ChangeNotifier {
     // Build greeting with pre-answered information
     String greeting;
     if (mode == CreatorMode.WORKOUT) {
-      greeting = 'Witaj! Jestem Twoim trenerem personalnym AI. Przeprowadzę Cię przez wywiad, aby stworzyć idealny plan treningowy dopasowany do Twoich potrzeb.\n\n';
+      greeting = 'Witaj! Jestem Twoim trenerem personalnym AI. Przeprowadzę Cię przez wywiad, aby stworzyć idealny plan treningowy dopasowany do Twoich potrzeb.\\n\\n';
       
       // Add pre-answered data
       if (userAge != null && userHeight != null && userWeight != null) {
-        greeting += 'Widzę, że mam już podstawowe informacje o Tobie:\n';
-        greeting += '- Wiek: $userAge lat\n';
-        greeting += '- Wzrost: ${userHeight.toInt()} cm\n';
-        greeting += '- Waga: ${userWeight.toInt()} kg\n\n';
-        greeting += 'Dzięki temu możemy przejść od razu do szczegółowych pytań treningowych.\n\n';
+        greeting += 'Widzę, że mam już podstawowe informacje o Tobie:\\n';
+        if (userGender != null) {
+          String genderLabel = userGender == 'male' ? 'Mężczyzna' : userGender == 'female' ? 'Kobieta' : 'Nie podano';
+          greeting += '- Płeć: $genderLabel\\n';
+        }
+        greeting += '- Wiek: $userAge lat\\n';
+        greeting += '- Wzrost: ${userHeight.toInt()} cm\\n';
+        greeting += '- Waga: ${userWeight.toInt()} kg\\n\\n';
+        greeting += 'Dzięki temu możemy przejść od razu do szczegółowych pytań treningowych.\\n\\n';
       }
       
-      greeting += 'Zacznijmy od pierwszego pytania:\n\n1. Czy chorujesz obecnie na jakieś choroby przewlekłe lub jesteś w trakcie leczenia?';
+      greeting += 'Zacznijmy od pierwszego pytania:\\n\\n1. Czy chorujesz obecnie na jakieś choroby przewlekłe lub jesteś w trakcie leczenia?';
     } else {
       // DIET mode
-      greeting = 'Witaj! Jestem Twoim dietetykiem AI. Przeprowadzę Cię przez wywiad, aby stworzyć idealny plan żywieniowy dopasowany do Twoich potrzeb.\n\n';
+      greeting = 'Witaj! Jestem Twoim dietetykiem AI. Przeprowadzę Cię przez wywiad, aby stworzyć idealny plan żywieniowy dopasowany do Twoich potrzeb.\\n\\n';
       
       // Add pre-answered data
       if (userAge != null && userHeight != null && userWeight != null) {
-        greeting += 'Widzę, że mam już podstawowe informacje o Tobie:\n';
-        greeting += '- Wiek: $userAge lat\n';
-        greeting += '- Wzrost: ${userHeight.toInt()} cm\n';
-        greeting += '- Waga: ${userWeight.toInt()} kg\n\n';
-        greeting += 'Dzięki temu możemy przejść od razu do pytań o Twoje cele i preferencje żywieniowe.\n\n';
+        greeting += 'Widzę, że mam już podstawowe informacje o Tobie:\\n';
+        if (userGender != null) {
+          String genderLabel = userGender == 'male' ? 'Mężczyzna' : userGender == 'female' ? 'Kobieta' : 'Nie podano';
+          greeting += '- Płeć: $genderLabel\\n';
+        }
+        greeting += '- Wiek: $userAge lat\\n';
+        greeting += '- Wzrost: ${userHeight.toInt()} cm\\n';
+        greeting += '- Waga: ${userWeight.toInt()} kg\\n\\n';
+        greeting += 'Dzięki temu możemy przejść od razu do pytań o Twoje cele i preferencje żywieniowe.\\n\\n';
       }
       
-      greeting += 'Zacznijmy od pierwszego pytania:\n\n1. Jaki jest Twój główny cel dietetyczny? (Redukcja wagi / Utrzymanie wagi / Budowa masy mięśniowej)';
+      greeting += 'Zacznijmy od pierwszego pytania:\\n\\n1. Jaki jest Twój główny cel dietetyczny? (Redukcja wagi / Utrzymanie wagi / Budowa masy mięśniowej)';
     }
     
     final greetingMsg = ChatMessage(
