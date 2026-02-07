@@ -1,8 +1,4 @@
-enum SubscriptionTier {
-  free,
-  basic,
-  premium,
-}
+import 'subscription_tier.dart';
 
 class SubscriptionPlan {
   final SubscriptionTier tier;
@@ -64,7 +60,7 @@ class SubscriptionPlan {
   );
 
   static const SubscriptionPlan premium = SubscriptionPlan(
-    tier: SubscriptionTier.premium,
+    tier: SubscriptionTier.pro,
     name: 'Premium',
     monthlyPrice: '50 zł',
     yearlyPrice: '500 zł',
@@ -91,8 +87,10 @@ class SubscriptionPlan {
         return free;
       case SubscriptionTier.basic:
         return basic;
-      case SubscriptionTier.premium:
+      case SubscriptionTier.pro:
         return premium;
+      case SubscriptionTier.lifetime:
+        return premium; // For now, lifetime gets premium features
     }
   }
 }

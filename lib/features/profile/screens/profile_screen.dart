@@ -9,6 +9,7 @@ import '../../../core/widgets/custom_button.dart';
 import '../../../providers/user_provider.dart';
 import '../../../providers/progress_provider.dart';
 import '../../../models/subscription_plan.dart';
+import '../../../models/subscription_tier.dart';
 import '../../../services/notification_service.dart';
 import '../../../core/widgets/worm_loader.dart';
 
@@ -45,6 +46,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // Language State
   bool? _isLanguageExpanded;
 
+  // Currency State
+  bool? _isCurrencyExpanded;
+
   // Appearance State
   bool? _isAppearanceExpanded;
 
@@ -56,11 +60,219 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool get isMeasurementsExpanded => _isMeasurementsExpanded ?? false;
   bool get isAppearanceExpanded => _isAppearanceExpanded ?? false;
   bool get isLanguageExpanded => _isLanguageExpanded ?? false;
+  bool get isCurrencyExpanded => _isCurrencyExpanded ?? false; // For currency selector
   bool get isInfoExpanded => _isInfoExpanded ?? false;
   bool get isSecurityExpanded => _isSecurityExpanded ?? false;
   bool get isNotificationsExpanded => _isNotificationsExpanded ?? false;
+  
+  // Subscription State
+  bool? _isSubscriptionExpanded;
+  bool get isSubscriptionExpanded => _isSubscriptionExpanded ?? false;
+
+  Widget _buildPremiumCard() {
+    final isPremium = context.watch<UserProvider>().isPremium;
+    if (isPremium) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          gradient: const LinearGradient(
+            colors: [Color(0xFF2E3192), Color(0xFF1BFFFF)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF1BFFFF).withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+             Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.star, color: Colors.white, size: 24),
+                ),
+                const SizedBox(width: 16),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Przejdź na Premium',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                       Text(
+                        'Odblokuj plany i asystenta AI',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
 
+
+  Widget _buildSubscriptionSection() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    
+    return Column(
+      children: [
+        ListTile(
+          leading: Icon(Icons.star_outline, color: colorScheme.onSurface),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+          title: Text(
+            'Subskrypcja',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: colorScheme.onSurface,
+            ),
+          ),
+          trailing: AnimatedRotation(
+            turns: isSubscriptionExpanded ? 0.25 : 0.0,
+             duration: const Duration(milliseconds: 200),
+            child: const Icon(Icons.chevron_right, color: AppColors.primary),
+          ),
+          onTap: () {
+            setState(() {
+              _isSubscriptionExpanded = !isSubscriptionExpanded;
+            });
+          },
+        ),
+        if (isSubscriptionExpanded) ...[
+          _buildSecurityItem(
+            label: 'Przywróć zakupy',
+            actionText: 'Przywróć',
+            actionColor: AppColors.primary,
+            onTap: _handleRestorePurchases,
+          ),
+          // Smart subscription management based on premium status
+          _buildSecurityItem(
+            label: context.watch<UserProvider>().isPremium 
+                ? 'Zarządzaj subskrypcją w Google Play'
+                : 'Kup subskrypcję Premium',
+            actionText: context.watch<UserProvider>().isPremium ? 'Otwórz' : 'Zobacz',
+            actionColor: AppColors.primary,
+            onTap: () => _handleManageSubscription(context),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _handleRestorePurchases() async {
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: WormLoader(size: 40)),
+    );
+    
+    try {
+      final success = await context.read<UserProvider>().restorePurchases();
+      if (!mounted) return;
+      Navigator.pop(context); // Close loader
+      
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Pomyślnie przywrócono zakupy!'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Nie znaleziono aktywnych subskrypcji do przywrócenia.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // Close loader
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Błąd podczas przywracania: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
+  void _handleManageSubscription(BuildContext context) {
+    final isPremium = context.read<UserProvider>().isPremium;
+    
+    if (isPremium) {
+      // Premium users: Show dialog with info and link to Google Play
+      showDialog(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Zarządzanie Subskrypcją'),
+          content: const SizedBox(
+            width: 500,
+            child: Text(
+              'Aby zarządzać swoją subskrypcją (anulować, zmienić plan, itp.), przejdź do Google Play Store.\n\n'
+              'Kliknij "Otwórz Google Play" poniżej aby przejść do ustawień subskrypcji.',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Zamknij'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(dialogContext);
+                // TODO: Open Google Play subscription page
+                // For now just show a snackbar
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Otwórz Google Play Store > Konto > Płatności i subskrypcje > Subskrypcje'),
+                      duration: Duration(seconds: 5),
+                    ),
+                  );
+                }
+              },
+              child: const Text('Otwórz Google Play'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // Free users: Show paywall
+      Navigator.of(context).pushNamed('/paywall');
+    }
+  }
 
   Widget _buildAppearanceSection() {
     final user = context.watch<UserProvider>();
@@ -241,6 +453,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _heightController.dispose();
     _ageController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Safely sync text fields with provider data when dependencies change
+    // This won't cause infinite loops like doing it in build() did
+    final userProvider = context.watch<UserProvider>();
+    
+    if (!(_isWeightEditing ?? false) && userProvider.weight != null) {
+      final text = '${userProvider.weight} kg';
+      if (_weightController.text != text) {
+        _weightController.text = text;
+      }
+    }
+    if (!(_isHeightEditing ?? false) && userProvider.height != null) {
+      final text = '${userProvider.height} cm';
+      if (_heightController.text != text) {
+        _heightController.text = text;
+      }
+    }
+    if (!(_isAgeEditing ?? false) && userProvider.age != null) {
+      final text = '${userProvider.age} lat';
+      if (_ageController.text != text) {
+        _ageController.text = text;
+      }
+    }
   }
   
   // Helpers to safely get boolean values
@@ -580,19 +819,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Consumer<UserProvider>(
       builder: (context, userProvider, child) {
-        // Sync text fields with provider if not currently editing
-        if (!(_isWeightEditing ?? false) && userProvider.weight != null) {
-          final text = '${userProvider.weight} kg';
-          if (_weightController.text != text) _weightController.text = text;
-        }
-        if (!(_isHeightEditing ?? false) && userProvider.height != null) {
-          final text = '${userProvider.height} cm';
-          if (_heightController.text != text) _heightController.text = text;
-        }
-        if (!(_isAgeEditing ?? false) && userProvider.age != null) {
-          final text = '${userProvider.age} lat';
-          if (_ageController.text != text) _ageController.text = text;
-        }
+        // REMOVED: Controller text synchronization from build() 
+        // This was causing infinite rebuild loops on Flutter Web
+        // Controllers are now only updated in initState and when user manually edits
 
         final theme = Theme.of(context);
         final colorScheme = theme.colorScheme;
@@ -616,6 +845,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           key: _formKey,
           child: Column(
             children: [
+              // Premium Card
+              GestureDetector(
+                onTap: () => Navigator.pushNamed(context, '/paywall'),
+                child: _buildPremiumCard(),
+              ),
+
               // Avatar Section
               Consumer<UserProvider>(
                 builder: (context, user, child) {
@@ -900,15 +1135,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     _buildNotificationSection(),
                     _buildDivider(),
-                    _buildSettingsItem(
-                      icon: Icons.emoji_events_outlined, 
-                      title: 'Preferencje wyzwań',
-                      onTap: () {},
-                    ),
+                    _buildSubscriptionSection(),
                     _buildDivider(),
                     _buildMeasurementsSection(),
                     _buildDivider(),
                     _buildAppearanceSection(),
+                    _buildDivider(),
+                    _buildCurrencySection(), // Moved between Appearance and Language
                     _buildDivider(),
                     _buildLanguageSection(),
                     _buildDivider(),
@@ -1523,6 +1756,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildSwitchItem('Niemiecki', currentLang == 'de', (v) {
              _showComingSoonSnackBar();
           }),
+          const SizedBox(height: 8),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildCurrencySection() {
+    final user = context.watch<UserProvider>();
+    final currentCurrency = user.preferredCurrency;
+    final colorScheme = Theme.of(context).colorScheme;
+    
+    // Currency icons and names
+    final currencies = {
+      'PLN': {'icon': '🇵🇱', 'name': 'Polski Złoty (zł)'},
+      'EUR': {'icon': '🇪🇺', 'name': 'Euro (€)'},
+      'USD': {'icon': '🇺🇸', 'name': 'US Dollar (\$)'},
+      'GBP': {'icon': '🇬🇧', 'name': 'Funt brytyjski (£)'},
+    };
+    
+    return Column(
+      children: [
+        ListTile(
+          leading: Icon(Icons.payments_outlined, color: colorScheme.onSurface),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+          title: Text(
+            'Preferencje płatności',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: colorScheme.onSurface,
+            ),
+          ),
+          trailing: AnimatedRotation(
+            turns: isCurrencyExpanded ? 0.25 : 0.0,
+             duration: const Duration(milliseconds: 200),
+            child: const Icon(Icons.chevron_right, color: AppColors.primary),
+          ),
+          onTap: () {
+            setState(() {
+              _isCurrencyExpanded = !isCurrencyExpanded;
+            });
+          },
+        ),
+        if (isCurrencyExpanded) ...[
+          ...currencies.entries.map((entry) {
+            final code = entry.key;
+            final info = entry.value;
+            return _buildSwitchItem(
+              '${info['icon']} ${info['name']}',
+              currentCurrency == code,
+              (v) {
+                if (v && currentCurrency != code) user.changeCurrency(code);
+              },
+            );
+          }).toList(),
           const SizedBox(height: 8),
         ],
       ],

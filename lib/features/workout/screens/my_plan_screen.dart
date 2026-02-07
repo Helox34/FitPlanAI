@@ -40,6 +40,13 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
   }
   
   void _navigateToProgressTab() {
+    // PREMIUM CHECK
+    final userProvider = context.read<UserProvider>();
+    if (!userProvider.isPremium) {
+      Navigator.pushNamed(context, '/paywall');
+      return;
+    }
+
     final mainShellState = context.findAncestorStateOfType<MainShellState>();
     if (mainShellState != null) {
       mainShellState.changeTab(2); // Progress tab is at index 2
@@ -110,105 +117,106 @@ class _MyPlanScreenState extends State<MyPlanScreen> {
           
           return SafeArea(
             bottom: false,
-            child: Column(
-              children: [
-                // Custom Header with Achievements and Title
-                _buildDashboardHeader(plan!),
-                
-                // Day Selector (Calendar Strip)
-                Container(
-                  color: theme.scaffoldBackgroundColor,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: DaySelector(
-                    currentWeekStart: _currentWeekStart,
-                    selectedDayIndex: _selectedDayIndex,
-                    onDaySelected: (index) {
-                      setState(() {
-                        _selectedDayIndex = index;
-                      });
-                    },
-                    onPreviousWeek: () {
-                      setState(() {
-                        _currentWeekStart = _currentWeekStart.subtract(const Duration(days: 7));
-                        // Keep selected index valid or reset? Keeping index is standard ux.
-                      });
-                    },
-                    onNextWeek: () {
-                      setState(() {
-                        _currentWeekStart = _currentWeekStart.add(const Duration(days: 7));
-                      });
-                    },
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                children: [
+                  // Custom Header with Achievements and Title
+                  _buildDashboardHeader(plan!),
+                  
+                  // Day Selector (Calendar Strip)
+                  Container(
+                    color: theme.scaffoldBackgroundColor,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: DaySelector(
+                      currentWeekStart: _currentWeekStart,
+                      selectedDayIndex: _selectedDayIndex,
+                      onDaySelected: (index) {
+                        setState(() {
+                          _selectedDayIndex = index;
+                        });
+                      },
+                      onPreviousWeek: () {
+                        setState(() {
+                          _currentWeekStart = _currentWeekStart.subtract(const Duration(days: 7));
+                          // Keep selected index valid or reset? Keeping index is standard ux.
+                        });
+                      },
+                      onNextWeek: () {
+                        setState(() {
+                          _currentWeekStart = _currentWeekStart.add(const Duration(days: 7));
+                        });
+                      },
+                    ),
                   ),
-                ),
-                
-                const Divider(height: 1, indent: 16, endIndent: 16),
-                
-                // Content
-                Expanded(
-                  child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
+                  
+                  const Divider(height: 1, indent: 16, endIndent: 16),
+                  
+                  // Content
+                  Padding(
                     padding: const EdgeInsets.all(16),
-                    children: [
-                      // "Start Live Training" Button
-                      Builder(
-                        builder: (context) {
-                          // Check if selected day is today
-                          final now = DateTime.now();
-                          // Calculate the actual selected date
-                          final selectedDate = _currentWeekStart.add(Duration(days: _selectedDayIndex));
-                          
-                          final isToday = selectedDate.year == now.year && 
-                                          selectedDate.month == now.month && 
-                                          selectedDate.day == now.day;
-                          
-                          return Container(
-                            width: double.infinity,
-                            margin: const EdgeInsets.only(bottom: 24),
-                            child: ElevatedButton.icon(
-                              onPressed: isToday ? () {
-                                // Start Live Training
-                                final liveProvider = context.read<LiveWorkoutProvider>();
-                                liveProvider.startWorkout(_selectedDayIndex);
-                                
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const LiveWorkoutScreen(),
-                                  ),
-                                );
-                              } : () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Możesz rozpocząć tylko dzisiejszy trening!'),
-                                    backgroundColor: Colors.orange,
-                                  ),
-                                );
-                              },
-                              icon: const Icon(Icons.play_circle_outline, size: 28),
-                              label: const Text(
-                                'Rozpocznij Trening Live',
-                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: isToday ? AppColors.primary : Colors.grey.shade400,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                    child: Column(
+                      children: [
+                        // "Start Live Training" Button
+                        Builder(
+                          builder: (context) {
+                            // Check if selected day is today
+                            final now = DateTime.now();
+                            // Calculate the actual selected date
+                            final selectedDate = _currentWeekStart.add(Duration(days: _selectedDayIndex));
+                            
+                            final isToday = selectedDate.year == now.year && 
+                                            selectedDate.month == now.month && 
+                                            selectedDate.day == now.day;
+                            
+                            return Container(
+                              width: double.infinity,
+                              margin: const EdgeInsets.only(bottom: 24),
+                              child: ElevatedButton.icon(
+                                onPressed: isToday ? () {
+                                  // Start Live Training
+                                  final liveProvider = context.read<LiveWorkoutProvider>();
+                                  liveProvider.startWorkout(_selectedDayIndex);
+                                  
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => const LiveWorkoutScreen(),
+                                    ),
+                                  );
+                                } : () {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Możesz rozpocząć tylko dzisiejszy trening!'),
+                                      backgroundColor: Colors.orange,
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.play_circle_outline, size: 28),
+                                label: const Text(
+                                  'Rozpocznij Trening Live',
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                                 ),
-                                elevation: isToday ? 4 : 0,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: isToday ? AppColors.primary : Colors.grey.shade400,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  elevation: isToday ? 4 : 0,
+                                ),
                               ),
-                            ),
-                          );
-                        }
-                      ),
-                      
-                      // Day Content
-                      _buildDayContent(plan!, _selectedDayIndex),
-                    ],
+                            );
+                          }
+                        ),
+                        
+                        // Day Content
+                        _buildDayContent(plan!, _selectedDayIndex),
+                      ],
+                    ),
                   ),
-                ),
-                
-              ],
+                ],
+              ),
             ),
           );
         },

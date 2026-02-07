@@ -76,6 +76,14 @@ class _ProgressScreenState extends State<ProgressScreen> {
       return;
     }
 
+    // Check if user is premium before allowing to create new plans
+    final isPremium = context.read<UserProvider>().isPremium;
+    if (!isPremium) {
+      // Show paywall for free users
+      Navigator.of(context).pushNamed('/paywall');
+      return;
+    }
+
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => PlanTypeSelectionScreen(preselectedMode: mode),

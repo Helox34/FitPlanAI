@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../models/subscription_plan.dart';
+import '../../../models/subscription_tier.dart';
 import '../../../providers/user_provider.dart';
 
 class SubscriptionScreen extends StatelessWidget {
@@ -123,7 +124,7 @@ class SubscriptionScreen extends StatelessWidget {
   Widget _buildPlanCard(BuildContext context, SubscriptionPlan plan, UserProvider userProvider) {
     final colorScheme = Theme.of(context).colorScheme;
     final isCurrentPlan = userProvider.subscriptionTier == plan.tier;
-    final isPremium = plan.tier == SubscriptionTier.premium;
+    final isPremium = plan.tier == SubscriptionTier.pro;
     
     return Container(
       decoration: BoxDecoration(
@@ -383,7 +384,7 @@ class SubscriptionScreen extends StatelessWidget {
           ),
           child: const Icon(Icons.star, color: AppColors.primary, size: 24),
         );
-      case SubscriptionTier.premium:
+      case SubscriptionTier.pro:
         return Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
@@ -392,13 +393,22 @@ class SubscriptionScreen extends StatelessWidget {
           ),
           child: const Icon(Icons.diamond, color: Colors.amber, size: 24),
         );
+      case SubscriptionTier.lifetime:
+        return Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.purple.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(Icons.diamond, color: Colors.purple, size: 24),
+        );
     }
   }
 
   String _calculateSavings(SubscriptionPlan plan) {
     if (plan.tier == SubscriptionTier.basic) {
       return '60 zł'; // 30*12 - 300 = 360 - 300 = 60
-    } else if (plan.tier == SubscriptionTier.premium) {
+    } else if (plan.tier == SubscriptionTier.pro) {
       return '100 zł'; // 50*12 - 500 = 600 - 500 = 100
     }
     return '0 zł';

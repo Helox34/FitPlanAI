@@ -728,6 +728,24 @@ Wytyczne strukturalne:
 8. **Zero waste:** Wykorzystuj składniki między dniami (np. kurczak dzień 1→sałatka dzień 2)
 9. **Balans:** Tydzień powinien być zrównoważony pod kątem różnych źródeł białka i węglowodanów
 
+**🚨 VALIDATION RULES - TWOJA ODPOWIEDŹ ZOSTANIE ODRZUCONA JEŚLI NIE SPEŁNISZ:** 
+1. Schedule array MUSI mieć DOKŁADNIE 7 elementów (nie 1, nie 6, nie 14 - TYLKO 7!)
+2. Każdy element to jeden dzień: \"Dzień 1\", \"Dzień 2\", \"Dzień 3\", \"Dzień 4\", \"Dzień 5\", \"Dzień 6\", \"Dzień 7\"
+3. Przykład poprawnej struktury schedule array:
+   ```json
+   "schedule": [
+     {"dayName": "Dzień 1", "summary": "2100 kcal | B: 165g W: 210g T: 65g", "items": [...]},
+     {"dayName": "Dzień 2", "summary": "2100 kcal | B: 165g W: 210g T: 65g", "items": [...]},
+     {"dayName": "Dzień 3", "summary": "2100 kcal | B: 165g W: 210g T: 65g", "items": [...]},
+     {"dayName": "Dzień 4", "summary": "2100 kcal | B: 165g W: 210g T: 65g", "items": [...]},
+     {"dayName": "Dzień 5", "summary": "2100 kcal | B: 165g W: 210g T: 65g", "items": [...]},
+     {"dayName": "Dzień 6", "summary": "2100 kcal | B: 165g W: 210g T: 65g", "items": [...]},
+     {"dayName": "Dzień 7", "summary": "2100 kcal | B: 165g W: 210g T: 65g", "items": [...]}
+   ]
+   ```
+4. Jeśli zwrócisz mniej niż 7 dni, CAŁA odpowiedź zostanie ODRZUCONA!
+5. Jeśli zwrócisz więcej niż 7 dni, CAŁA odpowiedź zostanie ODRZUCONA!
+
 ═══════════════════════════════════════════════════════════
 📈 PROGNOZY WAGI - SCIENTIFIC PROJECTIONS (CRITICAL!)
 ═══════════════════════════════════════════════════════════

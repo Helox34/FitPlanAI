@@ -35,10 +35,14 @@ class AppColors {
   static const Color textOnPrimary = Color(0xFFFFFFFF); // White
   
   // Accent Colors
+  static const Color accent = Color(0xFFFBBF24); // Gold/Yellow accent
   static const Color success = Color(0xFF10B981);
   static const Color warning = Color(0xFFF59E0B);
   static const Color error = Color(0xFFEF4444);
   static const Color info = Color(0xFF3B82F6);
+  
+  // Custom opacity colors for Paywall
+  static const Color white40 = Color(0x66FFFFFF); // 40% white
   
   // Chart Colors
   static const Color chartPrimary = Color(0xFF3B82F6);

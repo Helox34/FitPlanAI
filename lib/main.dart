@@ -11,6 +11,7 @@ import 'features/onboarding/screens/ai_trust_screen.dart';  // Fitify Feature 3.
 import 'features/legal/screens/terms_of_service_screen.dart';
 import 'features/legal/screens/privacy_policy_screen.dart';
 import 'features/subscription/screens/subscription_screen.dart';
+import 'features/premium/screens/paywall_screen.dart';
 import 'providers/chat_provider.dart';
 import 'providers/plan_provider.dart';
 import 'providers/user_provider.dart';
@@ -80,6 +81,7 @@ class FitPlanAIApp extends StatelessWidget {
               '/terms': (context) => const TermsOfServiceScreen(),
               '/privacy': (context) => const PrivacyPolicyScreen(),
               '/subscription': (context) => const SubscriptionScreen(),
+              '/paywall': (context) => const PaywallScreen(),
             },
           );
         },

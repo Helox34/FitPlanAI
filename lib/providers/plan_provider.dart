@@ -160,48 +160,56 @@ class PlanProvider with ChangeNotifier {
         // ---------------------------------------
         
       } else {
-        // DIET PLAN - Duplicate 7 days to 28 days (4 weeks)
-        if (plan.schedule.length == 7) {
-          debugPrint('📅 Expanding 7-day diet plan to 28 days (4 weeks)...');
-          
-          final weeklySchedule = List<PlanDay>.from(plan.schedule);
-          final expandedSchedule = <PlanDay>[];
-          
-          // Replicate the week 4 times (28 days total)
-          for (int week = 0; week < 4; week++) {
-            for (int day = 0; day < 7; day++) {
-              final originalDay = weeklySchedule[day];
-              final dayNumber = week * 7 + day + 1;
-              
-              // Create copy with updated day name
-              expandedSchedule.add(
-                PlanDay(
-                  dayName: 'Tydzień ${week + 1} - Dzień ${day + 1}',
-                  items: originalDay.items.map((item) => PlanItem(
-                    name: item.name,
-                    details: item.details,
-                    note: item.note,
-                    tips: item.tips,
-                  )).toList(),
-                  summary: originalDay.summary,
-                ),
-              );
-            }
-          }
-          
-          // Create new plan with expanded schedule
-          _dietPlan = GeneratedPlan(
-            mode: plan.mode,
-            title: plan.title,
-            description: plan.description,
-            schedule: expandedSchedule,
-            progress: plan.progress,
+        // DIET PLAN - Validate and expand to 28 days
+        debugPrint('📅 Received diet plan with ${plan.schedule.length} days');
+        
+        //  VALIDATION: AI MUST return exactly 7 days
+        if (plan.schedule.length != 7) {
+          throw Exception(
+            '🚨 AI wygenerowało ${plan.schedule.length} dni zamiast 7! '
+            'Plan dietetyczny został odrzucony. '
+            'Spróbuj ponownie - AI musi wygenerować dokładnie 7 dni.'
           );
-          
-          debugPrint('✅ Expanded to ${expandedSchedule.length} days');
-        } else {
-          _dietPlan = plan;
         }
+        
+        debugPrint('✅ Validation passed: 7-day plan received');
+        debugPrint('📅 Expanding to 28 days (4 weeks)...');
+        
+        final weeklySchedule = List<PlanDay>.from(plan.schedule);
+        final expandedSchedule = <PlanDay>[];
+        
+        // Replicate the week 4 times (28 days total)
+        for (int week = 0; week < 4; week++) {
+          for (int day = 0; day < 7; day++) {
+            final originalDay = weeklySchedule[day];
+            final dayNumber = week * 7 + day + 1;
+            
+            // Create copy with updated day name
+            expandedSchedule.add(
+              PlanDay(
+                dayName: 'Tydzień ${week + 1} - Dzień ${day + 1}',
+                items: originalDay.items.map((item) => PlanItem(
+                  name: item.name,
+                  details: item.details,
+                  note: item.note,
+                  tips: item.tips,
+                )).toList(),
+                summary: originalDay.summary,
+              ),
+            );
+          }
+        }
+        
+        // Create new plan with expanded schedule
+        _dietPlan = GeneratedPlan(
+          mode: plan.mode,
+          title: plan.title,
+          description: plan.description,
+          schedule: expandedSchedule,
+          progress: plan.progress,
+        );
+        
+        debugPrint('✅ Expanded to ${expandedSchedule.length} days');
       }
       
       // Persist to local storage

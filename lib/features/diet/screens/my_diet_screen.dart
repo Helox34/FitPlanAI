@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../home/screens/main_shell.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
@@ -35,12 +36,18 @@ class _MyDietScreenState extends State<MyDietScreen> {
   }
   
   void _navigateToProgressTab() {
+    // PREMIUM CHECK
+    final userProvider = context.read<UserProvider>();
+    if (!userProvider.isPremium) {
+      Navigator.pushNamed(context, '/paywall');
+      return;
+    }
+
     // Switch to Progress tab (index 2)
-    // TODO: Implement tab navigation without MainShellState
-    // final mainShellState = context.findAncestorStateOfType<MainShellState>();
-    // if (mainShellState != null) {
-    //   mainShellState.changeTab(2); // Progress tab is at index 2
-    // }
+    final mainShellState = context.findAncestorStateOfType<MainShellState>();
+    if (mainShellState != null) {
+      mainShellState.changeTab(2); // Progress tab is at index 2
+    }
   }
   
   @override
@@ -99,144 +106,146 @@ class _MyDietScreenState extends State<MyDietScreen> {
             );
           }
           
-          return Column(
-            children: [
-              // Plan header
-              Container(
-                padding: const EdgeInsets.all(20),
-                color: theme.scaffoldBackgroundColor, // Seamless header
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      plan!.title,
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.onSurface,
+          return SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              children: [
+                // Plan header
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  color: theme.scaffoldBackgroundColor, // Seamless header
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        plan!.title,
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onSurface,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      plan.description,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: colorScheme.onSurfaceVariant,
+                      const SizedBox(height: 8),
+                      Text(
+                        plan.description,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              
-              // Day Selector - Modified for 30-day plans
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                color: theme.scaffoldBackgroundColor,
-                child: Column(
-                  children: [
-                    // Week navigation for 30-day plan
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.chevron_left),
-                          onPressed: _selectedDayIndex >= 7 ? () {
-                            setState(() {
-                              _selectedDayIndex = (_selectedDayIndex - 7).clamp(0, plan.schedule.length - 1);
-                            });
-                          } : null,
-                        ),
-                        Text(
-                          'Tydzień ${(_selectedDayIndex ~/ 7) + 1}',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.chevron_right),
-                          onPressed: _selectedDayIndex + 7 < plan.schedule.length ? () {
-                            setState(() {
-                              _selectedDayIndex = (_selectedDayIndex + 7).clamp(0, plan.schedule.length - 1);
-                            });
-                          } : null,
-                        ),
-                      ],
-                    ),
-                    // Day buttons for current week
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: List.generate(
-                          7.clamp(0, plan.schedule.length - (_selectedDayIndex ~/ 7) * 7),
-                          (index) {
-                            final dayIndex = (_selectedDayIndex ~/ 7) * 7 + index;
-                            final date = _planStartDate.add(Duration(days: dayIndex));
-                            final isSelected = dayIndex == _selectedDayIndex;
-                            final isToday = dayIndex == 0;
-                            
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 4),
-                              child: InkWell(
-                                onTap: () {
-                                  setState(() {
-                                    _selectedDayIndex = dayIndex;
-                                  });
-                                },
-                                child: Container(
-                                  width: 60,
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  decoration: BoxDecoration(
-                                    color: isSelected
-                                        ? const Color(0xFF10B981)
-                                        : (isToday ? const Color(0xFF10B981).withOpacity(0.1) : null),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: isToday && !isSelected
-                                        ? Border.all(color: const Color(0xFF10B981), width: 2)
-                                        : null,
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Text(
-                                        ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Niedz'][date.weekday - 1],
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: isSelected
-                                              ? Colors.white
-                                              : colorScheme.onSurface.withOpacity(0.6),
+                
+                // Day Selector - Modified for 30-day plans
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  color: theme.scaffoldBackgroundColor,
+                  child: Column(
+                    children: [
+                      // Week navigation for 30-day plan
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.chevron_left),
+                            onPressed: _selectedDayIndex >= 7 ? () {
+                              setState(() {
+                                _selectedDayIndex = (_selectedDayIndex - 7).clamp(0, plan.schedule.length - 1);
+                              });
+                            } : null,
+                          ),
+                          Text(
+                            'Tydzień ${(_selectedDayIndex ~/ 7) + 1}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.chevron_right),
+                            onPressed: _selectedDayIndex + 7 < plan.schedule.length ? () {
+                              setState(() {
+                                _selectedDayIndex = (_selectedDayIndex + 7).clamp(0, plan.schedule.length - 1);
+                              });
+                            } : null,
+                          ),
+                        ],
+                      ),
+                      // Day buttons for current week
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: List.generate(
+                            7.clamp(0, plan.schedule.length - (_selectedDayIndex ~/ 7) * 7),
+                            (index) {
+                              final dayIndex = (_selectedDayIndex ~/ 7) * 7 + index;
+                              final date = _planStartDate.add(Duration(days: dayIndex));
+                              final isSelected = dayIndex == _selectedDayIndex;
+                              final isToday = dayIndex == 0;
+                              
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                child: InkWell(
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedDayIndex = dayIndex;
+                                    });
+                                  },
+                                  child: Container(
+                                    width: 60,
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? const Color(0xFF10B981)
+                                          : (isToday ? const Color(0xFF10B981).withOpacity(0.1) : null),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: isToday && !isSelected
+                                          ? Border.all(color: const Color(0xFF10B981), width: 2)
+                                          : null,
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Text(
+                                          ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Niedz'][date.weekday - 1],
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: isSelected
+                                                ? Colors.white
+                                                : colorScheme.onSurface.withOpacity(0.6),
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '${date.day}',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: isSelected ? Colors.white : colorScheme.onSurface,
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '${date.day}',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: isSelected ? Colors.white : colorScheme.onSurface,
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ),
-                            );
-                          },
+                              );
+                            },
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              
-              const Divider(height: 1, indent: 16, endIndent: 16),
-              
-              // Day content
-              Expanded(
-                child: _buildDayContent(plan, _selectedDayIndex),
-              ),
-            ],
+                
+                const Divider(height: 1, indent: 16, endIndent: 16),
+                
+                // Day content
+                _buildDayContent(plan, _selectedDayIndex),
+              ],
+            ),
           );
         },
       ),
     );
   }
+  
   
   Widget _buildDayContent(GeneratedPlan plan, int dayIndex) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -259,34 +268,36 @@ class _MyDietScreenState extends State<MyDietScreen> {
       );
     }
     
-    return ListView(
+    return Padding(
       padding: const EdgeInsets.all(16),
-      children: [
-        if (planDay.summary != null) ...[
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF10B981).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              planDay.summary!,
-              style: TextStyle(
-                fontSize: 14,
-                color: colorScheme.onSurface,
-                height: 1.4,
+      child: Column(
+        children: [
+          if (planDay.summary != null) ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                planDay.summary!,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: colorScheme.onSurface,
+                  height: 1.4,
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
+          ],
+          
+          ...planDay.items.asMap().entries.map((entry) {
+            final index = entry.key;
+            final item = entry.value;
+            return _buildMealCard(item, index + 1);
+          }).toList(),
         ],
-        
-        ...planDay.items.asMap().entries.map((entry) {
-          final index = entry.key;
-          final item = entry.value;
-          return _buildMealCard(item, index + 1);
-        }).toList(),
-      ],
+      ),
     );
   }
   

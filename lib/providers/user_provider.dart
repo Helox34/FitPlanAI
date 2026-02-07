@@ -8,13 +8,19 @@ import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../core/models/models.dart';
 import '../models/subscription_plan.dart';
+import '../models/subscription_tier.dart';
 import '../services/notification_service.dart';
 import '../services/achievement_service.dart';
+import '../services/subscription_service.dart';
 
 /// Provider for managing user profile and settings
 class UserProvider with ChangeNotifier {
   UserProfile? _profile;
   String _currentLanguage = 'pl'; // Default Polish
+  String _preferredCurrency = 'PLN'; // Default Polish Zloty
+  // ...
+  bool _isPremium = false;
+  final SubscriptionService _subscriptionService = SubscriptionService();
   String _currentThemeMode = 'light'; // Default Light
   int? _age;
   double? _weight;
@@ -36,6 +42,7 @@ class UserProvider with ChangeNotifier {
   
   UserProfile? get profile => _profile;
   String get currentLanguage => _currentLanguage;
+  String get preferredCurrency => _preferredCurrency;
   bool get isDarkMode => _currentThemeMode == 'dark';
   ThemeMode get themeMode => _currentThemeMode == 'dark' ? ThemeMode.dark : ThemeMode.light;
   int? get age => _age;
@@ -48,6 +55,7 @@ class UserProvider with ChangeNotifier {
   // Subscription Getters
   SubscriptionTier get subscriptionTier => _subscriptionTier;
   DateTime? get subscriptionExpiryDate => _subscriptionExpiryDate;
+  bool get isPremium => _isPremium;
 
   // Notification Getters
   bool get notifyApp => _notifyApp;
@@ -180,6 +188,7 @@ class UserProvider with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       
       _currentLanguage = prefs.getString('language') ?? 'pl';
+      _preferredCurrency = prefs.getString('user_currency') ?? 'PLN';
       _currentThemeMode = prefs.getString('theme') ?? 'light';
       _age = prefs.getInt('age');
       _weight = prefs.getDouble('weight');
@@ -374,6 +383,81 @@ class UserProvider with ChangeNotifier {
     }
   }
 
+  /// Check RevenueCat premium status
+  Future<void> refreshPremiumStatus() async {
+    await _subscriptionService.initialize();
+    _isPremium = await _subscriptionService.checkPremiumStatus();
+    
+    // Update local subscription tier (for backward compatibility if needed)
+    if (_isPremium) {
+      _subscriptionTier = SubscriptionTier.pro; // Map to your pro tier
+    } else {
+      _subscriptionTier = SubscriptionTier.free;
+    }
+    
+    debugPrint('💎 Premium Status Check: $_isPremium');
+    notifyListeners();
+  }
+
+  /// Restore purchases from RevenueCat
+  Future<bool> restorePurchases() async {
+    try {
+      await _subscriptionService.initialize();
+      final success = await _subscriptionService.restorePurchases();
+      
+      if (success) {
+        await refreshPremiumStatus();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error restoring purchases: $e');
+      return false;
+    }
+  }
+
+  // FEATURE GATE HELPERS
+  
+  /// Check if user has access to AI generation
+  bool canUseAIGeneration() {
+    return _subscriptionTier != SubscriptionTier.free || _isPremium;
+  }
+
+  /// Check if user has AI generations remaining this month
+  bool hasAIGenerationsRemaining(int usedThisMonth) {
+    final limit = _subscriptionTier.aiGenerationsPerMonth;
+    if (limit == -1) return true; // Unlimited
+    return usedThisMonth < limit;
+  }
+
+  /// Get remaining AI generations for this month
+  int getRemainingGenerations(int usedThisMonth) {
+    final limit = _subscriptionTier.aiGenerationsPerMonth;
+    if (limit == -1) return -1; // Unlimited
+    final remaining = limit - usedThisMonth;
+    return remaining > 0 ? remaining : 0;
+  }
+
+  /// Check if user can access advanced analytics
+  bool get canAccessAdvancedAnalytics => 
+      _subscriptionTier.hasAdvancedAnalytics || _isPremium;
+
+  /// Check if user has priority support
+  bool get hasPrioritySupport => 
+      _subscriptionTier.hasPrioritySupport || _isPremium;
+
+  /// Check if user has ad-free experience
+  bool get isAdFree => 
+      _subscriptionTier.hasNoAds || _isPremium;
+
+  /// Check if user can use meal replacements
+  bool get canUseMealReplacements => 
+      _subscriptionTier.hasMealReplacements || _isPremium;
+
+  /// Check if user can access full 28-day diet plans
+  bool get canAccessFullDietPlans => 
+      _subscriptionTier.hasFullDietPlans || _isPremium;
+
   /// Helper to update Firestore user document
   Future<void> _updateFirestore(Map<String, dynamic> data) async {
     final user = _auth.currentUser;
@@ -473,6 +557,19 @@ class UserProvider with ChangeNotifier {
     
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('user_language', languageCode);
+    
+    notifyListeners();
+  }
+
+  /// Change preferred currency
+  Future<void> changeCurrency(String currencyCode) async {
+    _preferredCurrency = currencyCode;
+    
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_currency', currencyCode);
+    
+    // Update Firestore
+    await _updateFirestore({'currency': currencyCode});
     
     notifyListeners();
   }
